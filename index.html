@@ -182,15 +182,23 @@
 <!-- ══ TAB GHI NHẬN ══ -->
 <div id="tab-ghi-nhan" class="tab-content active">
   <!-- BANNER CA HIỆN TẠI -->
-  <div id="ca-banner" style="background:linear-gradient(135deg,rgba(245,166,35,.15),rgba(245,166,35,.05));border:1px solid rgba(245,166,35,.3);border-radius:var(--r);padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-    <div style="display:flex;align-items:center;gap:8px;">
-      <span style="font-size:18px;">🚔</span>
-      <div>
-        <div style="font-size:11px;color:var(--dim);">Ca công tác đang hoạt động</div>
-        <div id="ca-ten-hien" style="font-size:15px;font-weight:700;color:var(--gold);">Chưa chọn ca</div>
+  <div id="ca-banner" style="background:linear-gradient(135deg,rgba(245,166,35,.15),rgba(245,166,35,.05));border:1px solid rgba(245,166,35,.3);border-radius:var(--r);padding:12px 14px;margin-bottom:12px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:18px;">🚔</span>
+        <div>
+          <div style="font-size:11px;color:var(--dim);">Ca đang ghi nhận</div>
+          <div id="ca-ten-hien" style="font-size:15px;font-weight:700;color:var(--gold);">Chưa chọn ca</div>
+        </div>
       </div>
+      <button class="btn btn-sec btn-sm" onclick="goTabById('ca-cong-tac')">⚙️ Quản lý ca</button>
     </div>
-    <button class="btn btn-sec btn-sm" onclick="goTabById('ca-cong-tac')">⚙️ Quản lý ca</button>
+    <!-- Chọn ca đang hoạt động để ghi nhận -->
+    <div id="ca-chon-wrap" style="display:none;">
+      <select id="ca-chon-select" onchange="chonCaGhiNhan(this.value)" style="font-size:12px;padding:6px 10px;width:100%;">
+        <option value="">-- Chọn ca để ghi nhận --</option>
+      </select>
+    </div>
   </div>
   <div class="sec-hd">
     <h2>Ghi nhận vi phạm mới</h2>
@@ -291,9 +299,9 @@
     <div class="prev-grid" id="prev-grid"></div>
   </div>
 
-  <!-- XÁC NHẬN -->
-  <div class="confirm-box">
-    <div class="card-title">✅ Xác nhận lập biên bản</div>
+  <!-- SỐ BB + CÁN BỘ (giữ để lưu dữ liệu, bỏ checkbox) -->
+  <div class="card">
+    <div class="card-title">📝 Thông tin biên bản</div>
     <div class="grid2">
       <div class="fg">
         <label>Số biên bản</label>
@@ -304,10 +312,6 @@
         <input type="text" id="can-bo" placeholder="Họ tên CSGT lập BB">
       </div>
     </div>
-    <label class="chk-row" style="margin-top:12px;background:rgba(245,166,35,.06);border-radius:8px;padding:12px;">
-      <input type="checkbox" id="chk-chinh">
-      <span class="chk-label" style="font-weight:700;color:var(--gold);font-size:14px;">✅ Đã lập biên bản vi phạm</span>
-    </label>
   </div>
 
   <div class="actions">
@@ -339,7 +343,7 @@
   <div class="tbl-wrap">
     <table>
       <thead><tr>
-        <th>STT</th><th>Ca</th><th>Số BB</th><th>Thời gian</th>
+        <th>STT</th><th>BB</th><th>Ca</th><th>Số BB</th><th>Thời gian</th>
         <th>Biển số</th><th>Họ tên</th><th>CMND/CCCD</th>
         <th>Địa chỉ</th><th>Nơi làm việc</th><th>HVVP</th><th></th>
       </tr></thead>
@@ -510,11 +514,8 @@ function luuCa() {
 function taoCA() {
   const ten = document.getElementById('ca-ten').value.trim();
   if (!ten) { alert('[!] Vui lòng nhập tên ca.'); return; }
-  if (caHienTai) {
-    if (!confirm('Đang có ca "' + caHienTai.ten + '" chưa kết thúc. Kết thúc ca đó và bắt đầu ca mới?')) return;
-    ketThucCA(true);
-  }
-  caHienTai = {
+  // Cho phép nhiều ca chạy song song — không kết thúc ca cũ
+  const newCa = {
     id: Date.now(),
     ten,
     to: document.getElementById('ca-to').value.trim(),
@@ -522,14 +523,15 @@ function taoCA() {
     batDau: new Date().toISOString(),
     ketThuc: null,
   };
-  dsCa.unshift({...caHienTai});
+  dsCa.unshift(newCa);
+  caHienTai = newCa; // Ca mới nhất là ca đang chọn để ghi nhận
   luuCa();
   document.getElementById('ca-ten').value = '';
   document.getElementById('ca-to').value = '';
   document.getElementById('ca-dia-ban').value = '';
   capNhatUIca();
   renderDSCa();
-  alert('[OK] Đã bắt đầu ca: ' + ten);
+  alert('[OK] Da bat dau ca: ' + ten);
 }
 
 function ketThucCA(silent) {
@@ -782,8 +784,7 @@ async function luuViPham() {
   const bienSo  = document.getElementById('bien-so').value.trim().toUpperCase();
   const hoTen   = document.getElementById('ho-ten').value.trim();
   const cmnd    = document.getElementById('cmnd').value.trim();
-  const xacNhan = document.getElementById('chk-chinh').checked;
-  const hvvp    = layHVVP();
+  const hvvp = layHVVP();
 
   if (!bienSo || !hoTen || !cmnd) {
     alert('[!] Vui lòng điền đủ:\n• Biển số xe\n• Họ tên\n• CMND/CCCD');
@@ -793,10 +794,7 @@ async function luuViPham() {
     alert('[!] Vui lòng chọn ít nhất 1 hành vi vi phạm.');
     return;
   }
-  if (!xacNhan) {
-    alert('[!] Vui lòng tick ô xác nhận đã lập biên bản.');
-    return;
-  }
+
 
   const now = new Date();
 
@@ -826,6 +824,7 @@ async function luuViPham() {
   try {
     await ghiSheet(record);
     // Thêm vào ds local tạm để hiện ngay
+    const _key = bienSo + '_' + now.toLocaleString('vi-VN');
     ds.unshift({
       thoiGian: now.toISOString(),
       bienSo, hoTen, cmnd,
@@ -833,12 +832,12 @@ async function luuViPham() {
       sdt: record['SĐT'],
       noiLamViec: record['Nơi làm việc'],
       hvvp: hvvpFull,
-      mucPhat: '',
-      xuLy: '',
       soBB: record['Số BB'],
       canBo: record['Cán bộ lập'],
       caId: caHienTai ? caHienTai.id : null,
       caTen: caHienTai ? caHienTai.ten : '',
+      daBB: false,
+      _key,
     });
     renderDSCa();
     capNhatBadge();
@@ -882,6 +881,7 @@ function renderBang(data) {
   if (!data.length) { empty.style.display='block'; return; }
   empty.style.display = 'none';
   data.forEach((v, i) => {
+    v._idx = ds.indexOf(v);
     const dt = v.thoiGian ? new Date(v.thoiGian) : null;
     const tg = dt ? dt.toLocaleDateString('vi-VN') + '<br><small style="color:var(--dim)">' + dt.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'}) + '</small>' : '-';
     const tagXL = (v.xuLy||'').includes('Tạm giữ') ? '<span class="tag tag-r">Tạm giữ PT</span>'
@@ -889,6 +889,11 @@ function renderBang(data) {
                 : '<span class="tag tag-w">Xử phạt HC</span>';
     tbody.innerHTML += `<tr>
       <td style="color:var(--dim);font-family:var(--mono);font-size:11px">${i+1}</td>
+      <td style="text-align:center">
+        <button onclick="toggleBB(${v._idx||i})" style="background:none;border:none;cursor:pointer;font-size:18px;" title="${v.daBB ? 'Da lap BB' : 'Chua lap BB'}">
+          ${v.daBB ? '<span style="color:var(--green)">✅</span>' : '<span style="color:var(--dim);font-size:14px">⬜</span>'}
+        </button>
+      </td>
       <td style="font-size:11px;color:var(--gold);max-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${v.caTen||''}">${v.caTen||'-'}</td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--blue)">${v.soBB||'-'}</td>
       <td style="font-size:11px">${tg}</td>
