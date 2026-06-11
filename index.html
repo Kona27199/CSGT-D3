@@ -151,6 +151,24 @@
     .stats-grid{grid-template-columns:1fr 1fr;}
   }
 </style>
+<!-- QR Scanner -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+/* QR MODAL */
+#qr-modal {
+  display:none; position:fixed; inset:0; z-index:999;
+  background:rgba(0,0,0,.85); align-items:center; justify-content:center;
+}
+#qr-modal.open { display:flex; }
+#qr-box {
+  background:var(--navy2); border:1px solid var(--border);
+  border-radius:var(--r); padding:20px; width:min(96vw,420px);
+}
+#qr-box h3 { font-size:14px; font-weight:700; margin-bottom:12px; color:var(--gold); }
+#qr-reader { width:100%; border-radius:8px; overflow:hidden; }
+#qr-result { margin-top:10px; font-size:12px; color:var(--green); min-height:20px; }
+#qr-close { margin-top:12px; width:100%; }
+</style>
 </head>
 <body>
 
@@ -205,7 +223,7 @@
     <span class="badge" id="so-bbvp">0 biên bản hôm nay</span>
   </div>
 
-  <!-- BIỂN SỐ -->
+  <!-- BIỂN SỐ + QR -->
   <div class="card">
     <div class="card-title">🚗 Biển số xe</div>
     <div class="fg">
@@ -215,7 +233,12 @@
 
   <!-- NGƯỜI VI PHẠM -->
   <div class="card">
-    <div class="card-title">👤 Thông tin người vi phạm</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div class="card-title" style="margin-bottom:0;">👤 Thông tin người vi phạm</div>
+      <button class="btn btn-ai btn-sm" onclick="moQR()" style="font-size:12px;">
+        📷 Quét QR CCCD
+      </button>
+    </div>
     <div class="grid2">
       <div class="fg">
         <label>Họ và tên *</label>
@@ -485,6 +508,16 @@
     <div style="margin-top:10px;display:flex;gap:8px;">
       <button class="btn btn-sec btn-sm" onclick="xuatCSV_Ca()">📥 Xuất CSV ca này</button>
     </div>
+  </div>
+</div>
+
+<!-- QR MODAL -->
+<div id="qr-modal">
+  <div id="qr-box">
+    <h3>📷 Quét QR CCCD / CMND</h3>
+    <div id="qr-reader"></div>
+    <div id="qr-result">Đưa mặt sau CCCD vào camera...</div>
+    <button class="btn btn-sec" id="qr-close" onclick="dongQR()">Đóng</button>
   </div>
 </div>
 
@@ -859,8 +892,10 @@ async function luuViPham() {
 // ─────────────────────────────────
 function xoaForm() {
   ['bien-so','ho-ten','cmnd','ngay-sinh','sdt','dia-chi','noi-lam-viec',
-   'dia-chi-lam-viec','muc-phat','dia-diem','ghi-chu','so-bb','can-bo']
+   'hvvp-khac','dia-diem','ghi-chu','so-bb','can-bo']
     .forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+  // Reset tất cả checkbox HVVP
+  document.querySelectorAll('#hvvp-list input[type=checkbox]').forEach(cb => cb.checked=false);
   ['loai-vi-pham','hang-bang','xu-ly'].forEach(id => {
     const el = document.getElementById(id); if(el) el.selectedIndex=0;
   });
@@ -890,8 +925,8 @@ function renderBang(data) {
     tbody.innerHTML += `<tr>
       <td style="color:var(--dim);font-family:var(--mono);font-size:11px">${i+1}</td>
       <td style="text-align:center">
-        <button onclick="toggleBB(${v._idx||i})" style="background:none;border:none;cursor:pointer;font-size:18px;" title="${v.daBB ? 'Da lap BB' : 'Chua lap BB'}">
-          ${v.daBB ? '<span style="color:var(--green)">✅</span>' : '<span style="color:var(--dim);font-size:14px">⬜</span>'}
+        <button onclick="toggleBB(${v._idx||i})" style="background:${v.daBB ? 'rgba(45,198,83,.2)' : 'rgba(255,255,255,.05)'};border:1px solid ${v.daBB ? 'var(--green)' : 'var(--border)'};border-radius:6px;cursor:pointer;font-size:14px;padding:4px 8px;white-space:nowrap;color:${v.daBB ? 'var(--green)' : 'var(--dim)'};">
+          ${v.daBB ? '✅ Da BB' : '⬜ Chua BB'}
         </button>
       </td>
       <td style="font-size:11px;color:var(--gold);max-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${v.caTen||''}">${v.caTen||'-'}</td>
@@ -1082,6 +1117,77 @@ function inBC() {
   w.document.write(`<html><head><title>Báo cáo CSGT</title><style>body{font-family:sans-serif;padding:30px;font-size:14px;line-height:1.8}pre{white-space:pre-wrap;font-family:inherit}</style></head><body><pre>${c}</pre></body></html>`);
   w.document.close(); w.print();
 }
+
+// ─────────────────────────────────
+// QR CCCD SCANNER
+// ─────────────────────────────────
+let qrScanner = null;
+
+function moQR() {
+  document.getElementById('qr-modal').classList.add('open');
+  document.getElementById('qr-result').textContent = 'Dua mat sau CCCD vao camera...';
+
+  if (typeof Html5Qrcode === 'undefined') {
+    document.getElementById('qr-result').textContent = '[X] Thu vien QR chua tai xong, thu lai.';
+    return;
+  }
+
+  qrScanner = new Html5Qrcode('qr-reader');
+  qrScanner.start(
+    { facingMode: 'environment' }, // camera sau
+    { fps: 10, qrbox: { width: 280, height: 280 } },
+    onQRSuccess,
+    () => {}
+  ).catch(err => {
+    document.getElementById('qr-result').textContent = '[!] Khong mo duoc camera: ' + err;
+  });
+}
+
+function dongQR() {
+  document.getElementById('qr-modal').classList.remove('open');
+  if (qrScanner) {
+    qrScanner.stop().then(() => {
+      qrScanner.clear();
+      qrScanner = null;
+    }).catch(() => { qrScanner = null; });
+  }
+}
+
+function onQRSuccess(text) {
+  // QR CCCD VN format: id|cmnd_cu|ho_ten|ngay_sinh|gioi_tinh|dia_chi|ngay_cap
+  // Ví dụ: 001099999999|0|Nguyen Van A|01011990|Nam|Ha Noi|01012022
+  try {
+    const parts = text.split('|');
+    if (parts.length >= 6) {
+      const cccd    = parts[0] ? parts[0].trim() : '';
+      const hoTen   = parts[2] ? parts[2].trim() : '';
+      const ngaySinh= parts[3] ? formatNgay(parts[3]) : '';
+      const diaChi  = parts[5] ? parts[5].trim() : '';
+
+      if (cccd)    { const el=document.getElementById('cmnd');     if(el) el.value=cccd; }
+      if (hoTen)   { const el=document.getElementById('ho-ten');   if(el) el.value=hoTen; }
+      if (ngaySinh){ const el=document.getElementById('ngay-sinh');if(el) el.value=ngaySinh; }
+      if (diaChi)  { const el=document.getElementById('dia-chi');  if(el) el.value=diaChi; }
+
+      document.getElementById('qr-result').textContent =
+        '[OK] Da dien: ' + hoTen + ' | ' + cccd + ' | ' + ngaySinh;
+
+      // Đóng modal sau 1.5s
+      setTimeout(dongQR, 1500);
+    } else {
+      document.getElementById('qr-result').textContent = '[!] QR khong dung dinh dang CCCD: ' + text.slice(0,40);
+    }
+  } catch(e) {
+    document.getElementById('qr-result').textContent = '[X] Loi doc QR: ' + e.message;
+  }
+}
+
+function formatNgay(s) {
+  // DDMMYYYY -> DD/MM/YYYY
+  if (!s || s.length < 8) return s;
+  return s.slice(0,2) + '/' + s.slice(2,4) + '/' + s.slice(4);
+}
+
 </script>
 </body>
 </html>
