@@ -1,0 +1,12 @@
+{
+  "name": "CSGT Ca Tuần Tra",
+  "short_name": "CSGT Tuần Tra",
+  "description": "Game pixel mô phỏng hoạt động tuần tra, kiểm soát của Cảnh sát giao thông.",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0d1b2a",
+  "theme_color": "#0d1b2a",
+  "lang": "vi",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

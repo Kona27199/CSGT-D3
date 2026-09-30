@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0d1b2a">
+<meta name="description" content="Game pixel mô phỏng hoạt động tuần tra, kiểm soát của Cảnh sát giao thông. Chơi offline.">
+<title>CSGT Ca Tuần Tra</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="384" height="216"></canvas>
+
+  <div id="hud" class="hidden">
+    <div id="hudL" class="hud-box"></div>
+    <div id="hudR" class="hud-box right"></div>
+    <div id="timewrap"><div id="timebar"></div></div>
+  </div>
+
+  <div id="card" class="hidden">
+    <canvas id="cardCv" width="64" height="32"></canvas>
+    <div id="cardTxt"></div>
+  </div>
+
+  <div id="hint" class="hidden"></div>
+
+  <div id="touch" class="hidden">
+    <div id="stick"><div id="knob"></div></div>
+    <button id="btnPause" aria-label="Tạm dừng">II</button>
+    <button id="btnAct">DỪNG XE</button>
+  </div>
+
+  <div id="screen" class="hidden"></div>
+  <div id="modal" class="hidden"></div>
+  <div id="toast"></div>
+</div>
+
+<noscript>Trình duyệt cần bật JavaScript để chơi.</noscript>
+<script src="js/util.js"></script>
+<script src="js/data.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/map.js"></script>
+<script src="js/traffic.js"></script>
+<script src="js/player.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/stop.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
