@@ -36,7 +36,7 @@ const TRAFFIC = {
     if (TRAFFIC.list.length > 64) return;
     for (const L of m.lanes) {
       L.timer -= dt;
-      if (L.timer > 0) continue;
+      if (L.timer > 0 || L.noSpawn) continue;
       let base;
       if (L.wrong) {
         if (!shift.p.wrongway) { L.timer = 999; continue; }
@@ -141,14 +141,14 @@ const TRAFFIC = {
     for (const v of TRAFFIC.list) {
       v.t += dt;
       const L = v.lane;
-      let target = v.cruiseKmh * KPX;
+      let target = v.cruiseKmh * KPX * (v.boost || 1);
       if (v.state === 'drive') {
         const ld = TRAFFIC.leaderOf(v);
         if (ld) {
           const gap = ld.d - (v.len + ld.v.len) / 2 - 6;
           if (gap < 40 && ld.v.speed < v.speed - 5 && !L.wrong) {
             /* thử chuyển làn để vượt */
-            const alt = m.lanes.find(o => o !== L && o.axis === L.axis && o.dir === L.dir && !o.wrong && Math.abs(o.pos - L.pos) <= 17);
+            const alt = m.lanes.find(o => o !== L && o.axis === L.axis && o.dir === L.dir && !o.wrong && !o.noSpawn && Math.abs(o.pos - L.pos) <= 17);
             const nearStop = L.stops.some(S => { const d = (S.at - TRAFFIC.front(v)) * v.dir; return d > -v.len && d < 60; });
             if (alt && !nearStop && TRAFFIC.laneFree(alt, v.s, v) && (!v.lcCool || v.t > v.lcCool)) {
               v.shift += L.pos - alt.pos; v.lane = alt; v.lcCool = v.t + 2;
@@ -172,6 +172,13 @@ const TRAFFIC = {
           if (mustStop) target = Math.min(target, Math.max(0, dist * 2.4));
           break;
         }
+        /* dừng tại chốt kiểm soát */
+        if (v.holdAt != null) {
+          const dist = (v.holdAt - f) * v.dir;
+          /* phanh theo quãng đường còn lại (v² = 2·a·d) để không vượt quá điểm dừng */
+          target = Math.min(target, Math.sqrt(2 * 120 * Math.max(0, dist)));
+          if ((v.speed < 3 && dist < 4) || dist < -6) { v.speed = 0; target = 0; v.state = 'cpwait'; v.waitT = 0; }
+        }
       } else if (v.state === 'pullover' || v.state === 'stopped') {
         target = 0;
         const want = Math.abs(v.lane.curb - v.lane.pos) - v.wid / 2 - 1 + (v.lane.axis === 'x' ? 0 : 0);
@@ -181,6 +188,8 @@ const TRAFFIC = {
         target = v.cruiseKmh * KPX * 0.9;
       } else if (v.state === 'flee') {
         target = v.cruiseKmh * KPX * 1.8;
+      } else if (v.state === 'cpwait') {
+        target = 0;
       } else if (v.state === 'crash') {
         target = 0; v.speed = 0;
       }
@@ -222,7 +231,7 @@ const TRAFFIC = {
       if (!v.helmet) out.push('m_helmet');
       if (v.pass >= 1 && !v.passHelmet) out.push('m_pass_helmet');
       if (v.pass === 2) out.push('m_carry2');
-      if (v.lane.wrong) out.push('m_wrongway');
+      if (v.lane.wrong || v.wrongReport) out.push('m_wrongway');
     }
     if (v.phone) out.push(P + 'phone');
     if (v.ranRed) out.push(P + 'redlight');
@@ -246,11 +255,27 @@ const TRAFFIC = {
       if (!v.helmet) t.push('m_helmet');
       if (v.pass >= 1 && !v.passHelmet) t.push('m_pass_helmet');
       if (v.pass === 2) t.push('m_carry2');
-      if (v.lane.wrong) t.push('m_wrongway');
+      if (v.lane.wrong || v.wrongReport) t.push('m_wrongway');
     }
     if (v.phone) t.push('phone');
     if (v.redWitnessed) t.push('redlight');
     if (v.measured != null && DATA.speedTier(v.veh, v.measured - v.lane.limit)) t.push('speed');
+    return t;
+  },
+
+  /* Dấu hiệu vi phạm nhìn thấy được (dùng cho gợi ý) */
+  signs(v) {
+    const t = [];
+    if (v.veh === 'moto') {
+      if (!v.helmet) t.push('⛑ Người lái không đội mũ bảo hiểm');
+      if (v.pass >= 1 && !v.passHelmet) t.push('⛑ Người ngồi sau không đội mũ');
+      if (v.pass === 2) t.push('👥 Chở 3 người');
+    }
+    if (v.phone) t.push('📱 Dùng điện thoại khi lái');
+    if (v.lane.wrong || v.wrongReport) t.push('⛔ Đi ngược chiều');
+    if (v.redWitnessed) t.push('📷 Vượt đèn đỏ');
+    if (v.measured != null && DATA.speedTier(v.veh, v.measured - v.lane.limit)) t.push('📡 Quá tốc độ');
+    if (v.weave) t.push('〰 Lạng lách, nghi có cồn');
     return t;
   },
 

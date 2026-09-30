@@ -167,3 +167,59 @@ body.has-touch #toast { top: 96px; }
   .book td:nth-child(3) { display: none; }
   .book th:nth-child(3) { display: none; }
 }
+
+/* ---------- chế độ chốt kiểm soát ---------- */
+#cpPanel {
+  position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); width: min(620px, 96vw);
+  background: rgba(10,20,32,.94); padding: 10px 12px; box-shadow: 0 0 0 3px var(--line), 0 0 0 6px var(--gold2);
+  font-size: 13.5px; line-height: 1.4;
+}
+.cp-top { display: flex; gap: 12px; align-items: center; }
+#cpCv { image-rendering: pixelated; background: #41444b; padding: 6px; flex: none; max-width: 48%; height: auto; }
+#cpInfo { flex: 1; min-width: 0; }
+#cpInfo .radar { font-size: 17px; font-weight: 800; }
+#cpInfo .radar.ok { color: var(--green); }
+#cpInfo .radar small { font-size: 11px; font-weight: 400; color: var(--dim); }
+.hintbox { margin-top: 4px; padding: 4px 6px; background: rgba(255,210,63,.12); color: #ffe08a; }
+#cpTimer { height: 6px; background: rgba(255,255,255,.1); margin: 8px 0; }
+#cpTimerBar { height: 100%; width: 100%; background: var(--gold); transition: width .1s linear; }
+.cp-btns { display: flex; gap: 12px; }
+.cp-btns .btn { flex: 1; text-align: center; font-size: 16px; padding: 12px 8px; }
+.cp-btns small { font-weight: 400; opacity: .7; font-size: 11px; }
+.btn.cp-stop { background: #b3261e; color: #fff; }
+.btn.cp-stop:hover { background: #d0342a !important; }
+.btn.cp-pass { background: #1f6b3a; color: #fff; }
+.btn.cp-pass:hover { background: #28854a !important; }
+#touch.cp #stick, #touch.cp #btnAct { display: none; }
+body.has-touch .cp-btns small { display: none; }
+
+.modes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.mode { text-align: left; background: var(--panel2); color: var(--dim); border: 0; padding: 10px; cursor: pointer; font-family: var(--font); box-shadow: 0 0 0 3px var(--line); }
+.mode b { display: block; color: var(--text); font-size: 14px; margin-bottom: 3px; }
+.mode span { font-size: 12px; line-height: 1.35; }
+.mode.on { background: #3a2f10; box-shadow: 0 0 0 3px var(--gold2); }
+.mode.on b { color: var(--gold); }
+
+.evidence fieldset { border: 0; background: rgba(0,0,0,.22); padding: 8px 10px; margin-bottom: 10px; }
+.evidence legend { color: var(--gold); font-weight: 700; font-size: 14px; padding: 2px 6px; background: var(--panel); }
+.evidence label { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; cursor: pointer; font-size: 14px; }
+.evidence input { margin-top: 4px; width: 17px; height: 17px; accent-color: #d8b24a; flex: none; }
+.fineopt { display: inline-block; color: #ffd98a; white-space: nowrap; }
+#card .signs { text-align: left; margin-top: 4px; }
+
+@media (max-width: 560px) {
+  .modes { grid-template-columns: 1fr; }
+  #cpPanel { font-size: 12px; padding: 8px; }
+  .cp-top { flex-direction: column; gap: 6px; }
+  #cpCv { max-width: 70%; }
+}
+.res-tbl td:last-child { width: 38%; }
+/* màn hình ngang thấp (điện thoại xoay ngang): bảng quan sát nằm bên phải */
+@media (max-height: 460px) and (min-width: 600px) {
+  #cpPanel { left: auto; right: 8px; bottom: 8px; top: 56px; transform: none; width: 44vw; overflow-y: auto; display: flex; flex-direction: column; }
+  .cp-top { flex-direction: column; align-items: stretch; gap: 6px; }
+  #cpCv { max-width: 100%; align-self: center; max-height: 38vh; width: auto; }
+  .cp-btns { margin-top: auto; }
+  .cp-btns .btn { padding: 10px 6px; font-size: 14px; }
+  #hud .hud-box.right { margin-right: 0; }
+}

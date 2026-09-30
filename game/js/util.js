@@ -45,7 +45,7 @@ const U = {
 /* Lưu tiến trình trong localStorage (có try/catch để không lỗi khi trình duyệt chặn) */
 const SAVE = {
   key: 'csgt_patrol_save_v1',
-  data: { xp: 0, best: {}, stars: {}, sound: true, tutorialDone: false, plays: 0, dailyBest: {} },
+  data: { xp: 0, best: {}, stars: {}, sound: true, tutorialDone: false, tutorialDoneP: false, plays: 0, dailyBest: {}, mode: 'cp' },
   load() {
     try {
       const raw = localStorage.getItem(SAVE.key);

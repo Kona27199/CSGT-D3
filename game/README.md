@@ -14,12 +14,19 @@ xác định đúng lỗi và mức phạt, ứng xử chuẩn mực và giữ l
 Game không tải bất kỳ tài nguyên nào từ Internet: đồ họa pixel và âm thanh 8-bit đều được tạo bằng code.
 Tiến trình (điểm kỷ lục, số sao, XP, cấp bậc) được lưu trong trình duyệt (localStorage).
 
-## 2. Điều khiển
+## 2. Hai chế độ chơi (chọn ở màn hình "Chọn ca tuần tra")
 
-- **Máy tính:** mũi tên hoặc `W A S D` để di chuyển · `SPACE` hoặc `E` để ra hiệu lệnh dừng xe hoặc xử lý tai nạn · `ESC` hoặc `P` để tạm dừng · phím `1–3` để chọn nhanh đáp án.
-- **Điện thoại:** cần điều khiển bên trái, nút **DỪNG XE** bên phải, nút `II` để tạm dừng.
+| Chế độ | Cách chơi |
+|---|---|
+| **Chốt kiểm soát** (mặc định, dễ) | Người chơi đứng tại chốt. Từng phương tiện vào chốt, dừng trước mặt và hiện **phóng to** ở bảng quan sát (mũ bảo hiểm, số người, điện thoại, tốc độ đo được, tin báo vượt đèn đỏ/đi ngược chiều). Bấm **DỪNG XE** hoặc **CHO QUA** trước khi hết giờ. Ca 1 có gợi ý dấu hiệu vi phạm. |
+| **Tuần tra cơ động (Khó)** | Tự di chuyển trên phố, tự phát hiện xe vi phạm giữa dòng xe. Hỗ trợ: xe có dấu hiệu vi phạm ở gần hiện biểu tượng **!** vàng; thẻ quan sát ghi rõ "Dấu hiệu". |
 
-## 3. Kịch bản
+## 3. Điều khiển
+
+- **Máy tính:** mũi tên hoặc `W A S D` để di chuyển (chế độ tuần tra) · `SPACE` hoặc `E` để ra hiệu lệnh dừng xe hoặc xử lý tai nạn · `C` để cho qua (chế độ chốt) · `ESC` hoặc `P` để tạm dừng · phím `1–3` để chọn nhanh đáp án.
+- **Điện thoại:** chế độ chốt bấm nút **DỪNG XE / CHO QUA** trên bảng quan sát; chế độ tuần tra dùng cần điều khiển bên trái và nút **DỪNG XE** bên phải; nút `II` để tạm dừng.
+
+## 4. Kịch bản
 
 | Ca | Bối cảnh | Trọng tâm |
 |---|---|---|
@@ -34,21 +41,22 @@ Tiến trình (điểm kỷ lục, số sao, XP, cấp bậc) được lưu tron
 Mở khóa ca sau khi đạt ít nhất 1 sao ở ca trước. Tích XP để thăng cấp: Hạ sĩ → Trung sĩ → … → Thiếu tá.
 
 ### Vòng chơi của một lượt dừng xe
-1. **Phát hiện:** quan sát thẻ phóng to (mũ bảo hiểm, số người, điện thoại) và máy đo tốc độ. Dấu `!` đỏ nghĩa là xe vừa vượt đèn đỏ trước mặt tổ công tác.
+1. **Phát hiện:** quan sát bảng/thẻ phóng to (mũ bảo hiểm, số người, điện thoại), máy đo tốc độ và tin báo.
 2. **Tiếp cận:** chào theo điều lệnh, thông báo lý do dừng xe.
 3. **Kiểm tra:** giấy tờ (bản giấy hoặc VNeID), tra cứu CSDL để phân biệt *không mang* với *không có* GPLX, đo nồng độ cồn.
 4. **Tình huống ứng xử:** xin xỏ, nhờ người quen, đưa hối lộ, quay video, cãi lý.
-5. **Kết luận:** chọn đúng các lỗi và hình thức xử lý. Màn hình kết quả hiện mức phạt và căn cứ pháp lý.
+5. **Kết luận theo bằng chứng:** mỗi bằng chứng thu được (mũ bảo hiểm, số người, tốc độ, nồng độ cồn, GPLX, đăng ký xe, bảo hiểm…) là một dòng có 3 lựa chọn: đúng lỗi + đúng mức phạt / đúng lỗi nhưng sai mức phạt / không vi phạm. Màn hình kết quả hiện kết luận đúng, mức phạt và căn cứ pháp lý.
 
 ### Yếu tố chơi lại
 Mỗi ca được sinh ngẫu nhiên từ một seed: phương tiện, lỗi hiện, **lỗi ẩn** (không có GPLX, bảo hiểm hết hạn, nồng độ cồn…),
 thái độ người vi phạm, thời điểm xảy ra tai nạn. Ngoài ra có chấm sao, kỷ lục từng ca và kỷ lục thử thách theo ngày.
 
 ### Tính điểm
-Xác định đúng lỗi +20 · bỏ sót −15 · kết luận sai −20 · đúng quy trình, ứng xử chuẩn mực +10 · từ chối hối lộ +30 ·
-**nhận hối lộ: ca trực thất bại** · dừng xe không có căn cứ −10 · để lọt xe vi phạm rõ ràng −5 · mỗi lượt kiểm tra tốn 6 giây ca trực.
+Kết luận đúng lỗi và mức phạt +20 · đúng "không vi phạm" +5 · đúng lỗi nhưng sai mức phạt −10 · sai hoặc bỏ sót −15 ·
+đúng quy trình, ứng xử chuẩn mực +10 · từ chối hối lộ +30 · **nhận hối lộ: ca trực thất bại** · dừng xe không có căn cứ −10 ·
+chế độ chốt: cho qua đúng +5, bỏ lọt −10 · chế độ tuần tra: để lọt xe vi phạm rõ ràng −5 · mỗi lượt kiểm tra tốn 6 giây ca trực.
 
-## 4. Dữ liệu pháp lý: cần đối chiếu
+## 5. Dữ liệu pháp lý: cần đối chiếu
 
 Toàn bộ lỗi và mức phạt nằm trong **`js/data.js`** (`DATA.VIOLATIONS`). Khi văn bản thay đổi, chỉ cần sửa file này.
 
@@ -57,7 +65,7 @@ Toàn bộ lỗi và mức phạt nằm trong **`js/data.js`** (`DATA.VIOLATIONS
   Mức tiền phạt đã được đối chiếu qua các nguồn tổng hợp. Trước khi dùng game để tuyên truyền, cần kiểm tra lại các mục này.
 - Chưa đưa vào game: lỗi *không có* đăng ký xe, tạm giữ phương tiện, xe quá tải. Các lỗi này phức tạp, dễ sai khi đơn giản hóa.
 
-## 5. Cấu trúc mã nguồn
+## 6. Cấu trúc mã nguồn
 
 ```
 game/

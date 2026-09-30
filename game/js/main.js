@@ -9,7 +9,8 @@ const G = {
   shift: null, timeLeft: 0, score: 0, stats: null, log: [],
   target: null, pendingStop: null, actCool: 0,
   accident: null, accidentAt: null,
-  keys: {}, stick: { x: 0, y: 0 }, act: false, touch: false,
+  keys: {}, stick: { x: 0, y: 0 }, act: false, pass: false, touch: false,
+  cp: false, cpCur: null, cpTimer: 0, cpLane: null, cpHold: 0, cpShift: null,
   drops: [], last: 0,
 
   init() {
@@ -62,6 +63,7 @@ const G = {
       }
       G.keys[k] = true;
       if ((k === ' ' || k === 'e' || k === 'j') && G.mode === 'play') { G.act = true; e.preventDefault(); }
+      if ((k === 'c' || k === 'enter') && G.mode === 'play') { G.pass = true; e.preventDefault(); }
       if ((k === 'escape' || k === 'p') && G.mode === 'play' && !UI.isModal()) { G.pause('menu'); UI.pauseMenu(); }
       if (k.startsWith('arrow')) e.preventDefault();
     });
@@ -122,19 +124,35 @@ const G = {
     }
   },
 
-  start(shift, seed) {
+  start(shift, seed, mode) {
     UI.hideScreen();
     UI.closeModal();
     G.shift = shift;
+    G.cp = (mode || SAVE.data.mode || 'cp') === 'cp';
     U.setSeed(seed >>> 0);
-    MAP.build(shift.map);
+    const m = MAP.build(shift.map);
     TRAFFIC.reset();
+    if (G.cp) {
+      /* chốt kiểm soát: làn ngoài cùng chiều Đông dành cho xe vào chốt */
+      G.cpLane = m.lanes[3];
+      G.cpLane.noSpawn = true;
+      const spot = m.kind === 'highway' ? { x: 40 * TILE, y: 16 * TILE + 10 } : { x: 14 * TILE, y: 21 * TILE + 10 };
+      m.cpSpot = spot;
+      G.cpHold = spot.x + 14;
+      /* tăng tỉ lệ vi phạm vì xe đến lần lượt */
+      const p = Object.assign({}, shift.p);
+      for (const k of ['helmet', 'passHelmet', 'carry2', 'phone', 'runRed', 'speed', 'alcohol']) p[k] = Math.min(0.6, (p[k] || 0) * 1.8);
+      G.cpShift = Object.assign({}, shift, { p: p });
+    }
     G.prewarm(20);
     for (const v of TRAFFIC.list) { v.ranRed = false; v.redWitnessed = false; }
-    PLAYER.reset(MAP.cur.spawn);
+    PLAYER.reset(G.cp ? m.cpSpot : m.spawn);
+    if (G.cp) PLAYER.face = 'left';
+    G.cpCur = null; G.cpTimer = 0.6; G.pass = false;
+    UI.$('touch').classList.toggle('cp', G.cp);
     G.timeLeft = shift.duration;
     G.score = 0; G.log = [];
-    G.stats = { stops: 0, correct: 0, missed: 0, wrong: 0, escaped: 0, procOk: 0, procBad: 0, bribeRefused: 0, fineMin: 0, fineMax: 0, accident: null };
+    G.stats = { passOk: 0, stops: 0, correct: 0, missed: 0, wrong: 0, escaped: 0, procOk: 0, procBad: 0, bribeRefused: 0, fineMin: 0, fineMax: 0, accident: null };
     G.target = null; G.pendingStop = null; G.act = false; G.actCool = 0;
     G.accident = null;
     G.accidentAt = shift.accident ? shift.duration * U.range(0.4, 0.6) : null;
@@ -145,9 +163,10 @@ const G = {
     UI._cache = {};
     UI.hud(true);
     AUDIO.siren();
-    if (shift.tutorial && !SAVE.data.tutorialDone) {
+    const tkey = G.cp ? 'tutorialDone' : 'tutorialDoneP';
+    if (shift.tutorial && !SAVE.data[tkey]) {
       G.pause('tutorial');
-      UI.dialogSeq(DATA.CAPTAIN, DATA.TUTORIAL, () => { SAVE.data.tutorialDone = true; SAVE.store(); G.resume(); });
+      UI.dialogSeq(DATA.CAPTAIN, G.cp ? DATA.TUTORIAL_CP : DATA.TUTORIAL, () => { SAVE.data[tkey] = true; SAVE.store(); G.resume(); });
     } else {
       G.pause('intro');
       UI.dialogSeq(DATA.CAPTAIN, [shift.desc + (shift.checkpoint ? ' Đây là chốt kiểm soát theo kế hoạch: đồng chí được dừng mọi phương tiện.' : '')], () => G.resume());
@@ -189,7 +208,71 @@ const G = {
       const n = DATA.SHIFTS.find(x => x.id === sh.id + 1);
       if (n && SAVE.unlocked(n.id)) nextShift = n;
     }
-    UI.summary({ shift: sh, score: score, stars: stars, stats: G.stats, log: G.log, failed: failed, newBest: newBest, promoted: promoted, nextShift: nextShift });
+    UI.summary({ mode: G.cp ? 'cp' : 'patrol', shift: sh, score: score, stars: stars, stats: G.stats, log: G.log, failed: failed, newBest: newBest, promoted: promoted, nextShift: nextShift });
+  },
+
+  /* ---------------- CHỐT KIỂM SOÁT ---------------- */
+  vehicleDone(v) {
+    if (G.cp && v === G.cpCur) { G.cpCur = null; G.cpTimer = 1.2; UI.cpPanel(null); }
+  },
+
+  cpSpawn() {
+    const L = G.cpLane, sh = G.cpShift;
+    const v = TRAFFIC.make(L, sh, Math.max(-30, G.cam.x - 30));
+    /* máy đo tốc độ ghi nhận tốc độ hành trình tại điểm đo; hình ảnh xe vào chốt được tăng tốc cho nhịp chơi nhanh */
+    if (G.shift.radar) v.measured = Math.round(v.cruiseKmh);
+    v.boost = 2;
+    v.speed = v.cruiseKmh * KPX * v.boost;
+    v.holdAt = G.cpHold;
+    v.cp = true;
+    if (v.runRed) { v.ranRed = true; v.redWitnessed = true; }
+    if (MAP.cur.kind === 'city' && v.veh === 'moto' && U.chance((sh.p.wrongway || 0) * 0.5)) v.wrongReport = true;
+    TRAFFIC.list.push(v);
+    G.cpCur = v;
+  },
+
+  cpPass(v, timeout) {
+    UI.cpPanel(null);
+    v.holdAt = null;
+    v.boost = 1;
+    v.state = 'drive';
+    const signs = TRAFFIC.signs(v);
+    let pts, msg;
+    if (TRAFFIC.visibleViolations(v).length || (v.weave && v.alc > 0)) {
+      pts = -10; G.stats.escaped++;
+      msg = (timeout ? 'Hết thời gian! ' : '') + 'Bỏ lọt vi phạm: ' + signs.join(', ') + ' (−10)';
+      AUDIO.bad();
+    } else if (G.shift.checkpoint) {
+      pts = -5;
+      msg = 'Chốt kiểm tra nồng độ cồn theo kế hoạch: cần dừng xe kiểm tra (−5)';
+      AUDIO.bad();
+    } else {
+      pts = 5; G.stats.passOk++;
+      msg = '✔ Nhận định đúng: không có dấu hiệu vi phạm (+5)';
+      AUDIO.good();
+    }
+    G.addScore(pts);
+    G.log.push({ plate: v.plate, text: 'Cho qua' + (pts < 0 ? ' – sai' : ' – đúng'), pts: pts });
+    UI.toast(msg, pts < 0 ? 'bad' : '');
+    G.vehicleDone(v);
+  },
+
+  updateCp(dt) {
+    if (!G.cpCur && !G.pendingStop) { G.cpTimer -= dt; if (G.cpTimer <= 0) G.cpSpawn(); }
+    const v = G.cpCur;
+    if (v && v.state === 'cpwait') {
+      v.waitT += dt;
+      const lim = G.shift.cpWait || 10;
+      UI.cpPanel(v, Math.max(0, 1 - v.waitT / lim));
+      UI.hint(G.touch ? null : '<b>SPACE</b>: dừng xe kiểm tra · <b>C</b>: cho qua');
+      if (G.act) { UI.cpPanel(null); INSPECT.command(v); }
+      else if (G.pass) G.cpPass(v, false);
+      else if (v.waitT > lim) G.cpPass(v, true);
+    } else {
+      UI.cpPanel(null);
+      UI.hint(G.pendingStop ? 'Phương tiện đang tấp vào lề...' : 'Phương tiện tiếp theo đang vào chốt...');
+    }
+    G.act = false; G.pass = false;
   },
 
   /* ---------------- TAI NẠN ---------------- */
@@ -234,7 +317,28 @@ const G = {
         UI.toast('Để lọt phương tiện vi phạm ' + v.plate + ' (−5)');
       }
       if (v === G.pendingStop) G.pendingStop = null;
+      if (v === G.cpCur) G.vehicleDone(v);
     });
+    if (G.cp) {
+      const m2 = MAP.cur;
+      G.cam.x = Math.round(U.clamp(PLAYER.x - G.cam.w * 0.3, 0, Math.max(0, m2.pw - G.cam.w)));
+      G.cam.y = Math.round(U.clamp(PLAYER.y - G.cam.h * 0.5, 0, Math.max(0, m2.ph - G.cam.h)));
+      if (G.accidentAt != null && G.timeLeft <= G.accidentAt && !G.pendingStop && (!G.cpCur || G.cpCur.state !== 'pullover')) {
+        G.accidentAt = null;
+        AUDIO.siren();
+        UI.toast('📻 Trung tâm chỉ huy: Có tai nạn giao thông gần chốt! Tổ công tác đến hiện trường ngay!', 'bad');
+        UI.cpPanel(null);
+        INSPECT.accident();
+        return;
+      }
+      if (G.pendingStop && G.pendingStop.state === 'stopped' && G.pendingStop.t - G.pendingStop.stoppedAt > 0.3) {
+        const v = G.pendingStop; G.pendingStop = null;
+        INSPECT.begin(v);
+        return;
+      }
+      G.updateCp(dt);
+      return;
+    }
     const inp = G.input();
     PLAYER.update(dt, inp.x, inp.y);
     G.cam.x = Math.round(U.clamp(PLAYER.x - G.cam.w / 2, 0, Math.max(0, m.pw - G.cam.w)));
@@ -310,6 +414,18 @@ const G = {
       }
       if (Math.floor(G.accident.t * 3) % 2 === 0) MAP.pixelText(g, '!', ax - 1, ay - 26, '#ff3b30');
     }
+    if (G.mode !== 'menu' && G.cp && m.cpSpot) G.drawCones(g, m, cam);
+    if (G.mode === 'play' && !G.cp && Math.floor(performance.now() / 300) % 2 === 0) {
+      for (const v of TRAFFIC.list) {
+        if (v.state !== 'drive' || v.stopped) continue;
+        if (Math.hypot(v.x - PLAYER.x, v.y - PLAYER.y) > 110) continue;
+        if (!TRAFFIC.signs(v).length) continue;
+        const x = Math.round(v.x - cam.x), y = Math.round(v.y - cam.y) - 15;
+        g.fillStyle = '#000'; g.fillRect(x - 3, y - 1, 7, 8);
+        g.fillStyle = '#ffd23f'; g.fillRect(x - 2, y, 5, 6);
+        MAP.pixelText(g, '!', x - 1, y + 1, '#c0392b');
+      }
+    }
     if (G.mode !== 'menu') PLAYER.draw(g, cam);
     /* khung khóa mục tiêu */
     const tv = G.mode === 'play' ? G.target : null;
@@ -336,6 +452,16 @@ const G = {
         g.fillRect(-6, -1, 7, 3); g.fillRect(0, -3, 2, 7); g.fillRect(2, -2, 2, 5); g.fillRect(4, -1, 2, 3);
         g.restore();
       }
+    }
+  },
+
+  drawCones(g, m, cam) {
+    const L = G.cpLane, y = Math.round(L.pos - 8 - cam.y);
+    for (let x = m.cpSpot.x - 150; x <= m.cpSpot.x + 30; x += 18) {
+      const px = Math.round(x - cam.x);
+      g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(px - 1, y + 2, 5, 2);
+      g.fillStyle = '#ff7b00'; g.fillRect(px, y - 3, 3, 5); g.fillRect(px - 1, y + 1, 5, 1);
+      g.fillStyle = '#ffffff'; g.fillRect(px, y - 1, 3, 1);
     }
   },
 

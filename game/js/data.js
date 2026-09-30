@@ -73,7 +73,7 @@ DATA.alcoholLevel = function (mg) {
 /* p: xác suất phát sinh từng loại vi phạm trên mỗi phương tiện */
 DATA.SHIFTS = [
   {
-    id: 1, name: 'Ca 1 · Ngày đầu nhận nhiệm vụ', short: 'Ngày đầu nhận nhiệm vụ',
+    id: 1, cpWait: 14, hints: true, name: 'Ca 1 · Ngày đầu nhận nhiệm vụ', short: 'Ngày đầu nhận nhiệm vụ',
     desc: 'Buổi sáng, tuyến phố gần trường học. Đội trưởng hướng dẫn quy trình dừng xe, kiểm tra và xử lý vi phạm.',
     map: 'city', time: '07:00', light: 'day', weather: 'clear', duration: 180,
     density: 0.8, mix: { moto: 0.8, car: 0.2, truck: 0 }, radar: false, checkpoint: false,
@@ -82,7 +82,7 @@ DATA.SHIFTS = [
     stars: [80, 180, 300]
   },
   {
-    id: 2, name: 'Ca 2 · Giờ cao điểm', short: 'Giờ cao điểm',
+    id: 2, cpWait: 10, name: 'Ca 2 · Giờ cao điểm', short: 'Giờ cao điểm',
     desc: 'Chiều tối, ngã tư đông xe. Chú ý vượt đèn đỏ, đi ngược chiều vào đường một chiều, dùng điện thoại khi lái xe.',
     map: 'city', time: '17:00', light: 'dusk', weather: 'clear', duration: 210,
     density: 1.25, mix: { moto: 0.75, car: 0.22, truck: 0.03 }, radar: false, checkpoint: false,
@@ -91,7 +91,7 @@ DATA.SHIFTS = [
     stars: [100, 220, 360]
   },
   {
-    id: 3, name: 'Ca 3 · Chốt kiểm tra nồng độ cồn', short: 'Chốt nồng độ cồn',
+    id: 3, cpWait: 10, name: 'Ca 3 · Chốt kiểm tra nồng độ cồn', short: 'Chốt nồng độ cồn',
     desc: 'Buổi tối, chốt kiểm soát theo kế hoạch. Được dừng mọi phương tiện để kiểm tra nồng độ cồn. Cảnh giác với hối lộ và bỏ chạy.',
     map: 'city', time: '21:00', light: 'night', weather: 'clear', duration: 210,
     density: 0.9, mix: { moto: 0.7, car: 0.27, truck: 0.03 }, radar: false, checkpoint: true,
@@ -100,7 +100,7 @@ DATA.SHIFTS = [
     stars: [120, 260, 420]
   },
   {
-    id: 4, name: 'Ca 4 · Tuần tra quốc lộ', short: 'Tuần tra quốc lộ',
+    id: 4, cpWait: 9, name: 'Ca 4 · Tuần tra quốc lộ', short: 'Tuần tra quốc lộ',
     desc: 'Ban ngày trên quốc lộ, có máy đo tốc độ. Biển báo tốc độ tối đa 60 km/h. Xác định đúng mức vượt tốc độ.',
     map: 'highway', time: '10:00', light: 'day', weather: 'clear', duration: 210,
     density: 1.0, mix: { moto: 0.5, car: 0.38, truck: 0.12 }, radar: true, checkpoint: false,
@@ -109,7 +109,7 @@ DATA.SHIFTS = [
     stars: [120, 260, 420]
   },
   {
-    id: 5, name: 'Ca 5 · Đêm mưa', short: 'Đêm mưa',
+    id: 5, cpWait: 9, name: 'Ca 5 · Đêm mưa', short: 'Đêm mưa',
     desc: 'Đêm mưa, tầm nhìn hạn chế. Tất cả loại vi phạm đều có thể xảy ra. Sẽ có tình huống tai nạn giao thông cần xử lý.',
     map: 'city', time: '22:00', light: 'night', weather: 'rain', duration: 240,
     density: 0.9, mix: { moto: 0.7, car: 0.26, truck: 0.04 }, radar: true, checkpoint: false,
@@ -128,7 +128,7 @@ DATA.makeFreeShift = function (rand, daily) {
   const rain = rand() < 0.25;
   const times = { day: '09:00', dusk: '17:30', night: '21:30' };
   return {
-    id: daily ? 'daily' : 'free',
+    id: daily ? 'daily' : 'free', cpWait: 10,
     name: daily ? 'Thử thách hôm nay' : 'Tuần tra tự do',
     short: daily ? 'Thử thách hôm nay' : 'Tuần tra tự do',
     desc: 'Tình huống sinh ngẫu nhiên. ' + (map === 'city' ? 'Khu đô thị.' : 'Quốc lộ.'),
@@ -164,10 +164,24 @@ DATA.PROVINCE_CODES = ['29', '30', '33', '34', '36', '37', '15', '17', '18', '20
 
 DATA.CAPTAIN = 'Thiếu tá Trần Minh (Đội trưởng)';
 
+DATA.TUTORIAL_CP = [
+  'Chào đồng chí! Tôi là Thiếu tá Trần Minh, Đội trưởng. Hôm nay đồng chí làm nhiệm vụ tại chốt kiểm soát cùng tổ công tác của tôi.',
+  'Từng phương tiện sẽ vào chốt và dừng trước mặt đồng chí. Bảng quan sát phía dưới phóng to phương tiện: hãy xem kỹ mũ bảo hiểm, số người trên xe, điện thoại (chấm xanh sáng), tốc độ đo được và các tin báo.',
+  'Có dấu hiệu vi phạm thì bấm DỪNG XE (phím SPACE). Không có vi phạm thì bấm CHO QUA (phím C). Hết thời gian quan sát, phương tiện sẽ tự đi tiếp.',
+  'Khi làm việc: chào, thông báo lý do dừng xe, kiểm tra giấy tờ, đo nồng độ cồn nếu có dấu hiệu. Sau đó kết luận từng bằng chứng: đúng lỗi, đúng mức phạt.',
+  'Người dân có thể xuất trình giấy tờ qua ứng dụng VNeID. Nếu thông tin hợp lệ thì coi như đã mang theo.',
+  'Ca đầu tiên có gợi ý dấu hiệu vi phạm. Chúc đồng chí hoàn thành tốt nhiệm vụ!'
+];
+
+DATA.MODES = {
+  cp: { name: 'Chốt kiểm soát', desc: 'Xe vào chốt lần lượt, phóng to để quan sát. Dễ tiếp cận.' },
+  patrol: { name: 'Tuần tra cơ động (Khó)', desc: 'Tự di chuyển trên phố, tự phát hiện xe vi phạm giữa dòng xe.' }
+};
+
 DATA.TUTORIAL = [
   'Chào đồng chí! Tôi là Thiếu tá Trần Minh, Đội trưởng. Hôm nay đồng chí đi tuần cùng tổ công tác của tôi.',
   'Di chuyển: phím mũi tên hoặc W A S D. Trên điện thoại dùng cần điều khiển bên trái.',
-  'Đến gần phương tiện, khung vàng sẽ khóa mục tiêu. Góc phải màn hình phóng to phương tiện để đồng chí quan sát: mũ bảo hiểm, số người trên xe, điện thoại...',
+  'Đến gần phương tiện, khung vàng sẽ khóa mục tiêu. Góc phải màn hình phóng to phương tiện để đồng chí quan sát: mũ bảo hiểm, số người trên xe, điện thoại... Xe có dấu hiệu vi phạm ở gần sẽ hiện biểu tượng ! màu vàng.',
   'Phát hiện vi phạm thì nhấn SPACE (hoặc nút DỪNG XE) để ra hiệu lệnh dừng. Chỉ dừng xe khi có căn cứ. Dừng xe tùy tiện sẽ bị trừ điểm.',
   'Khi làm việc: chào, thông báo lý do dừng xe, kiểm tra giấy tờ, xác định đúng lỗi, rồi mới xử lý. Luôn đúng quy trình và liêm chính!',
   'Người dân có thể xuất trình giấy tờ qua ứng dụng VNeID. Nếu thông tin hợp lệ thì coi như đã mang theo.',

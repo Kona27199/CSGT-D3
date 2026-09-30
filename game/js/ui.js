@@ -113,6 +113,7 @@ const UI = {
       '<div class="badge"><canvas id="badgeCv" width="24" height="24"></canvas></div>' +
       '<h1>CSGT<span>CA TUẦN TRA</span></h1>' +
       '<p class="rank">🎖 ' + rk.cur.name + ' · ' + SAVE.data.xp + ' XP' + next + '</p>' +
+      '<p class="dim">Chế độ: <b>' + DATA.MODES[SAVE.data.mode || 'cp'].name + '</b> (đổi trong "Chọn ca tuần tra")</p>' +
       '<div class="menu">' +
       '<button class="btn primary" data-a="shifts">▶ Chọn ca tuần tra</button>' +
       '<button class="btn" data-a="free">🎲 Tuần tra tự do</button>' +
@@ -147,7 +148,10 @@ const UI = {
   },
 
   shifts() {
-    let html = '<div class="panel"><h2>Chọn ca tuần tra</h2><div class="shifts">';
+    const md = SAVE.data.mode || 'cp';
+    let html = '<div class="panel"><h2>Chọn ca tuần tra</h2>' +
+      '<div class="modes">' + Object.keys(DATA.MODES).map(k => '<button class="mode ' + (k === md ? 'on' : '') + '" data-m="' + k + '"><b>' + DATA.MODES[k].name + '</b><span>' + DATA.MODES[k].desc + '</span></button>').join('') + '</div>' +
+      '<div class="shifts">';
     for (const sh of DATA.SHIFTS) {
       const un = SAVE.unlocked(sh.id), st = SAVE.data.stars[sh.id] || 0, best = SAVE.data.best[sh.id];
       html += '<button class="shift ' + (un ? '' : 'locked') + '" data-id="' + sh.id + '"' + (un ? '' : ' disabled') + '>' +
@@ -158,6 +162,7 @@ const UI = {
     }
     html += '</div><div class="row-end"><button class="btn" data-a="back">← Quay lại</button></div></div>';
     const s = UI.screen(html);
+    s.querySelectorAll('.mode[data-m]').forEach(b => b.onclick = () => { AUDIO.click(); SAVE.data.mode = b.dataset.m; SAVE.store(); UI.shifts(); });
     s.querySelectorAll('.shift[data-id]').forEach(b => b.onclick = () => {
       AUDIO.click();
       const sh = DATA.SHIFTS.find(x => x.id === +b.dataset.id);
@@ -207,15 +212,18 @@ const UI = {
       '<h4>Điều khiển</h4><ul>' +
       '<li><b>Máy tính:</b> Mũi tên / W A S D để di chuyển · <b>SPACE</b> hoặc <b>E</b>: ra hiệu lệnh dừng xe / xử lý tai nạn · <b>ESC</b> hoặc <b>P</b>: tạm dừng · Phím số <b>1–3</b> để chọn nhanh đáp án.</li>' +
       '<li><b>Điện thoại:</b> kéo cần điều khiển bên trái để di chuyển, nút <b>DỪNG XE</b> bên phải.</li></ul>' +
-      '<h4>Cách chơi</h4><ul>' +
-      '<li>Đến gần phương tiện, khung vàng khóa mục tiêu. Thẻ quan sát (góc phải) phóng to phương tiện: mũ bảo hiểm, số người, điện thoại (chấm xanh sáng), tốc độ (nếu có máy đo).</li>' +
+      '<h4>Chế độ Chốt kiểm soát</h4><ul>' +
+      '<li>Từng phương tiện vào chốt, dừng trước mặt và hiện phóng to ở bảng quan sát. Quan sát mũ bảo hiểm, số người, điện thoại, tốc độ, tin báo.</li>' +
+      '<li><b>DỪNG XE</b> (Space) nếu có dấu hiệu vi phạm, <b>CHO QUA</b> (C) nếu không. Cho qua đúng: <b>+5</b> · Bỏ lọt: <b>−10</b>.</li></ul>' +
+      '<h4>Chế độ Tuần tra cơ động (Khó)</h4><ul>' +
+      '<li>Xe có dấu hiệu vi phạm ở gần hiện biểu tượng <b style="color:#ffd23f">!</b>. Đến gần phương tiện, khung vàng khóa mục tiêu. Thẻ quan sát (góc phải) phóng to phương tiện: mũ bảo hiểm, số người, điện thoại (chấm xanh sáng), tốc độ (nếu có máy đo).</li>' +
       '<li>Dấu <b style="color:#ff3b30">!</b> nhấp nháy trên xe: tổ công tác vừa ghi nhận xe vượt đèn đỏ.</li>' +
-      '<li>Dừng xe → 3 bước: <b>Tiếp cận</b> → <b>Kiểm tra</b> (giấy tờ, tra cứu, đo nồng độ cồn) → <b>Kết luận</b> lỗi và hình thức xử lý.</li>' +
+      '<li>Mỗi lần dừng xe có 3 bước: <b>Tiếp cận</b> → <b>Kiểm tra</b> (giấy tờ, tra cứu, đo nồng độ cồn) → <b>Kết luận theo bằng chứng</b>: mỗi bằng chứng chọn đúng lỗi và mức phạt, hoặc "Không vi phạm".</li>' +
       '<li>Mỗi ca, tình huống được sinh ngẫu nhiên: lỗi ẩn (không bằng lái, bảo hiểm hết hạn, nồng độ cồn…), thái độ người vi phạm khác nhau.</li></ul>' +
       '<h4>Tính điểm</h4><ul>' +
-      '<li>Xác định đúng lỗi: <b>+20</b> · Bỏ sót: <b>−15</b> · Kết luận sai: <b>−20</b> · Đúng quy trình, ứng xử chuẩn mực: <b>+10</b></li>' +
+      '<li>Kết luận đúng lỗi và mức phạt: <b>+20</b> · Đúng "Không vi phạm": <b>+5</b> · Đúng lỗi, sai mức phạt: <b>−10</b> · Sai hoặc bỏ sót: <b>−15</b> · Đúng quy trình, ứng xử chuẩn mực: <b>+10</b></li>' +
       '<li>Từ chối hối lộ: <b>+30</b> · Nhận hối lộ: <b>kết thúc ca, 0 sao</b></li>' +
-      '<li>Dừng xe không có căn cứ: <b>−10</b> · Để lọt xe có vi phạm rõ ràng đã đi ngang qua gần mình: <b>−5</b></li>' +
+      '<li>Dừng xe không có căn cứ: <b>−10</b> · (Tuần tra) để lọt xe có vi phạm rõ ràng đã đi ngang qua gần mình: <b>−5</b></li>' +
       '<li>Mỗi lượt kiểm tra tiêu tốn thời gian ca trực. Hãy chọn đúng mục tiêu!</li></ul>' +
       '<div class="row-end"><button class="btn" data-a="back">← Quay lại</button></div></div>');
     s.querySelector('[data-a=back]').onclick = () => { AUDIO.click(); back(); };
@@ -226,7 +234,7 @@ const UI = {
     const acc = st.correct + st.missed + st.wrong > 0 ? Math.round(st.correct / (st.correct + st.missed + st.wrong) * 100) : 0;
     const rk = SAVE.rank();
     let html = '<div class="panel wide"><h2>' + (r.failed ? '⛔ Ca trực thất bại' : '📋 Tổng kết ca trực') + '</h2>' +
-      '<p class="dim">' + U.esc(r.shift.name) + '</p>';
+      '<p class="dim">' + U.esc(r.shift.name) + ' · ' + DATA.MODES[r.mode].name + '</p>';
     if (r.failed) html += '<p class="fb bad">Nhận hối lộ là hành vi phạm tội và vi phạm nghiêm trọng điều lệnh CAND. Người chiến sĩ CSGT phải luôn liêm chính!</p>';
     html += '<div class="stars big">' + '★'.repeat(r.stars) + '<i>' + '★'.repeat(3 - r.stars) + '</i></div>' +
       '<div class="score-big">' + r.score + ' điểm' + (r.newBest && r.score > 0 ? ' <span class="nb">KỶ LỤC MỚI!</span>' : '') + '</div>' +
@@ -240,6 +248,7 @@ const UI = {
       '<div><b>' + st.procOk + '/' + (st.procOk + st.procBad) + '</b><span>Ứng xử chuẩn mực</span></div>' +
       '<div><b>' + (r.failed ? '✖' : st.bribeRefused > 0 ? '✔ ' + st.bribeRefused : '✔') + '</b><span>Liêm chính</span></div>' +
       '</div>';
+    if (st.passOk) html += '<p class="dim">Cho qua đúng (không vi phạm): ' + st.passOk + ' phương tiện</p>';
     if (st.fineMax > 0) html += '<p class="fine">Tổng mức phạt các biên bản lập đúng: ' + U.money(st.fineMin) + ' – ' + U.money(st.fineMax) + '</p>';
     html += '<p class="rank">🎖 ' + rk.cur.name + ' · ' + SAVE.data.xp + ' XP' + (r.promoted ? ' <span class="nb">THĂNG CẤP!</span>' : '') + '</p>';
     if (r.log.length) {
@@ -257,12 +266,12 @@ const UI = {
     s.querySelector('[data-a=again]').onclick = () => {
       AUDIO.click();
       const sh = r.shift;
-      if (sh.id === 'free') G.start(DATA.makeFreeShift(U.rng(Date.now() & 0xffffffff), false), Date.now() & 0xffffffff);
-      else if (sh.id === 'daily') G.start(sh, U.dateSeed());
-      else G.start(sh, Date.now() & 0xffffffff);
+      if (sh.id === 'free') G.start(DATA.makeFreeShift(U.rng(Date.now() & 0xffffffff), false), Date.now() & 0xffffffff, r.mode);
+      else if (sh.id === 'daily') G.start(sh, U.dateSeed(), r.mode);
+      else G.start(sh, Date.now() & 0xffffffff, r.mode);
     };
     const n = s.querySelector('[data-a=next]');
-    if (n) n.onclick = () => { AUDIO.click(); G.start(r.nextShift, Date.now() & 0xffffffff); };
+    if (n) n.onclick = () => { AUDIO.click(); G.start(r.nextShift, Date.now() & 0xffffffff, r.mode); };
   },
 
   pauseMenu() {
@@ -284,7 +293,7 @@ const UI = {
   hud(on) {
     UI.$('hud').classList.toggle('hidden', !on);
     UI.$('touch').classList.toggle('hidden', !on || !G.touch);
-    if (!on) { UI.$('card').classList.add('hidden'); UI.$('hint').classList.add('hidden'); }
+    if (!on) { UI.$('card').classList.add('hidden'); UI.$('hint').classList.add('hidden'); UI.cpPanel(null); }
   },
   _cache: {},
   set(id, html) {
@@ -323,9 +332,41 @@ const UI = {
       const k = Math.round(v.speed / KPX);
       t += '<div class="radar ' + (k >= v.lane.limit + 5 ? 'bad' : '') + '">📡 ' + k + ' km/h <small>(tối đa ' + v.lane.limit + ')</small></div>';
     }
-    if (v.redWitnessed) t += '<div class="bad">📷 Vượt đèn đỏ!</div>';
-    if (v.lane.wrong) t += '<div class="bad">⛔ Đi ngược chiều</div>';
+    const sg = TRAFFIC.signs(v);
+    t += sg.length ? '<div class="signs"><b>Dấu hiệu:</b>' + sg.map(x => '<div class="bad">' + x + '</div>').join('') + '</div>' : '<div class="dim">Chưa thấy dấu hiệu vi phạm</div>';
     UI.set('cardTxt', t);
+  },
+
+  cpPanel(v, frac) {
+    const P = UI.$('cpPanel');
+    if (!v) { if (!P.classList.contains('hidden')) P.classList.add('hidden'); UI._cpV = null; return; }
+    if (UI._cpV !== v) {
+      UI._cpV = v;
+      P.classList.remove('hidden');
+      const cv = UI.$('cpCv');
+      const sc = v.kind === 'moto' ? 8 : v.kind === 'car' ? 6 : 4;
+      cv.width = (v.len + 2) * sc; cv.height = (v.wid + 2) * sc;
+      const g = cv.getContext('2d');
+      g.imageSmoothingEnabled = false;
+      g.drawImage(v.spr, 0, 0, cv.width, cv.height);
+      let t = '<div><b class="plate">' + U.esc(v.plate) + '</b> ' + (v.kind === 'moto' ? 'Xe máy' : v.kind === 'car' ? 'Ô tô con' : 'Ô tô tải') + '</div>';
+      if (v.pass) t += '<div>Trên xe: ' + (1 + v.pass) + ' người</div>';
+      if (v.measured != null) t += '<div class="radar ' + (v.measured >= v.lane.limit + 5 ? 'bad' : 'ok') + '">📡 ' + v.measured + ' km/h <small>(tối đa ' + v.lane.limit + ')</small></div>';
+      if (v.redWitnessed) t += '<div class="bad">📻 Tin báo: xe vừa vượt đèn đỏ ở ngã tư phía trước</div>';
+      if (v.wrongReport) t += '<div class="bad">📻 Tin báo: xe vừa đi ngược chiều vào đường một chiều</div>';
+      if (v.weave) t += '<div class="bad">〰 Xe chạy lạng lách, không vững tay lái</div>';
+      if (G.shift.hints) {
+        const sg = TRAFFIC.signs(v);
+        t += '<div class="hintbox">💡 Gợi ý: ' + (sg.length ? sg.join(' · ') + ' → nên DỪNG XE' : 'không thấy dấu hiệu vi phạm → có thể CHO QUA') + '</div>';
+      } else {
+        t += '<div class="dim">Quan sát: mũ bảo hiểm · số người · điện thoại (chấm xanh sáng)</div>';
+      }
+      if (G.shift.checkpoint) t += '<div class="dim">Chốt nồng độ cồn theo kế hoạch: dừng kiểm tra mọi phương tiện.</div>';
+      UI.$('cpInfo').innerHTML = t;
+      UI.$('cpStop').onclick = () => { AUDIO.init(); G.act = true; };
+      UI.$('cpPass').onclick = () => { AUDIO.init(); G.pass = true; };
+    }
+    UI.$('cpTimerBar').style.width = Math.round(frac * 100) + '%';
   },
 
   hint(msg) {
