@@ -1,5 +1,5 @@
 /* Service worker: lưu toàn bộ game vào bộ nhớ đệm để chơi offline khi mở qua http(s) */
-const CACHE = 'csgt-patrol-v6';
+const CACHE = 'csgt-patrol-v7';
 const FILES = [
   './', 'index.html', 'css/style.css', 'manifest.webmanifest', 'icon.svg',
   'js/util.js', 'js/data.js', 'js/audio.js', 'js/sprites.js', 'js/map.js', 'js/traffic.js',

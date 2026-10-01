@@ -20,6 +20,7 @@ const PLAYER = {
       const t = MAP.get(m, Math.floor(x / TILE), Math.floor(y / TILE));
       return t === T.ROAD || t === T.SHOULDER || (PLAYER.veh === 'moto' && (t === T.WALK || t === T.DIRT || t === T.YARD));
     };
+    if (m.island && Math.hypot(nx - m.island.x, ny - m.island.y) < m.island.r + h) return true;
     return !(ok(nx - h, ny - h) && ok(nx + h, ny - h) && ok(nx - h, ny + h) && ok(nx + h, ny + h));
   },
 

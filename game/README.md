@@ -64,9 +64,20 @@ Tiến trình (điểm kỷ lục, số sao, XP, cấp bậc) được lưu tron
 | 5 · Đêm mưa | Phố đô thị, 22:00, mưa | Tổng hợp mọi lỗi, nhiều tình huống đặc biệt |
 | 6 · Khu công nghiệp tan ca | **Khu công nghiệp**, 17:30 | Xe tải quá tải, quá khổ; công nhân chở quá số người |
 | 7 · Đường làng mùa lễ hội | **Nông thôn**, 19:30 | Rượu bia, không đội mũ, đua xe |
-| Tuần tra tự do / Thử thách hôm nay | Ngẫu nhiên 4 bản đồ | Mọi thứ ngẫu nhiên |
+| 8 · Cao tốc cuối tuần | **Đường cao tốc**, 09:30 (mở sau Ca 4) | Làn dừng khẩn cấp, dưới tốc độ tối thiểu, xe máy vào cao tốc, xe gặp sự cố cần hỗ trợ |
+| 9 · Khu đô thị mới | **Khu đô thị mới**, 08:00 (mở sau Ca 2) | Không nhường đường ở vòng xuyến, vượt đường ngang khi đèn đỏ |
+| 10 · Cao tốc sương mù | Đường cao tốc, 05:45 (mở sau Ca 8) | 🌫 Sương mù + 🙈 Không gợi ý |
+| 11 · Tan tầm khu đô thị | Khu đô thị mới, 17:30 (mở sau Ca 9) | 🚦 Ùn tắc + ⚖ Kỷ luật nghiêm |
+| 12 · Đêm mưa thử thách | Phố đô thị, 22:30, mưa (mở sau Ca 5) | 🙈 Không gợi ý + ⚖ Kỷ luật nghiêm |
+| Tuần tra tự do / Thử thách hôm nay | Ngẫu nhiên 6 bản đồ (thử thách hôm nay có thêm 1 điều kiện khó) | Mọi thứ ngẫu nhiên |
 
-**Bốn bản đồ:** Phố đô thị (đường một chiều, 2 ngã tư có đèn) · Quốc lộ (4 làn, ruộng lúa, làng ven đường) · Nông thôn (tỉnh lộ, đường liên xã, kênh mương, cầu, ruộng lúa, nhà mái ngói, chợ quê) · Khu công nghiệp (đường 4 làn, nhà xưởng, bãi container, cổng KCN, trạm cân, khu nhà trọ công nhân).
+**Hai bản đồ mới:**
+- **Đường cao tốc:** 2 chiều × 2 làn, làn dừng khẩn cấp hai bên, dải phân cách cứng giữa, hộ lan tôn sóng, giá long môn biển báo, biển tốc độ tối đa 100 km/h và tối thiểu 60 km/h, trạm dừng nghỉ. Xe mô tô không được đi vào cao tốc nên các ca trên bản đồ này chỉ chơi chế độ **Chốt** hoặc **Tuần tra ô tô** (chọn mô tô sẽ tự chuyển sang ô tô). Xe dừng ở làn khẩn cấp có thể **đúng quy định** (gặp sự cố và bật đèn khẩn cấp: hỗ trợ, không xử phạt) hoặc **sai quy định** (dừng nghỉ, đi vệ sinh, chụp ảnh, nghe điện thoại, hoặc không bật đèn khẩn cấp) – phải hỏi lý do và quan sát đèn để kết luận.
+- **Khu đô thị mới:** đại lộ 4 làn, **vòng xuyến** có đảo tròn (xe đi vòng ngược chiều kim đồng hồ, phải nhường xe đang đi trong vòng xuyến; nhiều xe máy luồn lách qua hàng chờ để chen vào), **đường ngang giao cắt đường sắt** có chắn tự động, đèn đỏ nhấp nháy và tàu chạy qua; chung cư cao tầng, hồ điều hòa. Ở chế độ chốt, vi phạm tại vòng xuyến/đường ngang đến qua tin báo của camera giám sát.
+
+**Điều kiện ca khó** (hiện trên thẻ ca và trên thanh thông tin): 🌫 Sương mù (tầm nhìn hạn chế, dấu ! chỉ hiện khi rất gần) · 🚦 Ùn tắc (mật độ xe ×1,7, xe chạy chậm) · ⚖ Kỷ luật nghiêm (sai sót quá 3 lần: kết luận sai, bỏ sót hoặc để lọt → bị đình chỉ ca trực) · 🙈 Không gợi ý (thẻ quan sát không liệt kê dấu hiệu, không có dấu !).
+
+**Bốn bản đồ ban đầu:** Phố đô thị (đường một chiều, 2 ngã tư có đèn) · Quốc lộ (4 làn, ruộng lúa, làng ven đường) · Nông thôn (tỉnh lộ, đường liên xã, kênh mương, cầu, ruộng lúa, nhà mái ngói, chợ quê) · Khu công nghiệp (đường 4 làn, nhà xưởng, bãi container, cổng KCN, trạm cân, khu nhà trọ công nhân).
 
 ### Tình huống đặc biệt (phát sinh ngẫu nhiên 2–3 lần mỗi ca)
 | Tình huống | Cách xử lý trong game |
@@ -101,6 +112,8 @@ chế độ chốt: cho qua đúng +5, bỏ lọt −10 · chế độ tuần tr
 Toàn bộ lỗi và mức phạt nằm trong **`js/data.js`** (`DATA.VIOLATIONS`). Khi văn bản thay đổi, chỉ cần sửa file này.
 
 - Căn cứ: **Nghị định 168/2024/NĐ-CP** (hiệu lực 01/01/2025), Luật TTATGTĐB 2024, Thông tư 73/2024/TT-BCA.
+- Lỗi **vượt đường ngang khi đèn đỏ đã bật, chắn đang dịch chuyển** thuộc lĩnh vực đường sắt: **Nghị định 81/2026/NĐ-CP** (ngày 19/3/2026, hiệu lực 15/5/2026) – ô tô khoản 9 Điều 13: 18–20 triệu đồng; mô tô, xe gắn máy khoản 6 Điều 13: 4–6 triệu đồng; cùng tước GPLX 01–03 tháng (⚠ đối chiếu).
+- Lỗi mới trên cao tốc / vòng xuyến (NĐ 168/2024): chạy ở làn dừng khẩn cấp – điểm d khoản 5 Điều 6 (4–6 triệu, trừ 02 điểm); dừng, đỗ trên cao tốc không đúng nơi quy định / không bật đèn khẩn cấp khi buộc phải dừng ở làn khẩn cấp – điểm c khoản 7 Điều 6 (12–14 triệu, trừ 06 điểm); chạy dưới tốc độ tối thiểu – khoản 3 Điều 6 (800 nghìn–1 triệu, ⚠ điểm cụ thể); xe mô tô đi vào cao tốc – khoản 7 Điều 7 (4–6 triệu, trừ 06 điểm, ⚠); không nhường đường tại vòng xuyến – ô tô điểm o khoản 5 Điều 6 (4–6 triệu), mô tô điểm d khoản 6 Điều 7 (2–3 triệu), cùng trừ 02 điểm (⚠).
 - Mục có `verify: true` (hiện dấu ⚠ trong game) là **điều/khoản/điểm hoặc mức trừ điểm chưa đối chiếu được với văn bản gốc**.
   Mức tiền phạt đã được đối chiếu qua các nguồn tổng hợp. Trước khi dùng game để tuyên truyền, cần kiểm tra lại các mục này.
 - Lỗi chuyên đề ô tô (Điều 20, 21): quá tải theo 4 mức (trên 10–30%, 30–50%, 50–100%, 100–150%; từ 10% trở xuống chưa xử phạt), chở hàng vượt chiều cao xếp hàng (giới hạn 4,2 m áp dụng cho xe trong game), xe khách chở quá số người (phạt theo mỗi người vượt, tuyến dưới 300 km, tổng không quá 75 triệu đồng). Toàn bộ đánh dấu ⚠ cần đối chiếu.
@@ -115,7 +128,7 @@ game/
 ├── js/util.js            # RNG có seed, lưu game
 ├── js/data.js            # DỮ LIỆU PHÁP LÝ, ca trực, hội thoại, tình huống
 ├── js/audio.js           # âm thanh 8-bit (WebAudio)
-├── js/map.js             # sinh bản đồ đô thị / quốc lộ, biển báo, đèn tín hiệu
+├── js/map.js             # sinh 6 bản đồ (đô thị, quốc lộ, nông thôn, KCN, cao tốc, đô thị mới), biển báo, đèn tín hiệu, rào chắn
 ├── js/traffic.js         # phương tiện, hồ sơ vi phạm, di chuyển, vượt đèn đỏ
 ├── js/player.js          # nhân vật chiến sĩ CSGT
 ├── js/stop.js            # quy trình dừng xe, chấm điểm, bỏ chạy, tai nạn

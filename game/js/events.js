@@ -14,7 +14,9 @@ const EVENTS = {
     const cfg = DATA.SHIFT_EVENTS[shift.id] || DATA.SHIFT_EVENTS.free;
     for (let i = 0; i < cfg.n; i++) {
       const at = shift.duration * (0.15 + 0.72 * (i + U.range(0.1, 0.7)) / cfg.n);
-      EVENTS.plan.push({ at: at, type: U.weighted(cfg.w) });
+      let type = U.weighted(cfg.w);
+      if (MAP.cur && MAP.cur.kind === 'expressway' && type === 'snatch') type = 'accident';
+      EVENTS.plan.push({ at: at, type: type });
     }
     UI.banner(null);
   },
@@ -24,7 +26,7 @@ const EVENTS = {
     const zero = { helmet: 0, passenger: 0, passHelmet: 0, carry2: 0, phone: 0, runRed: 0, speed: 0, alcohol: 0, noLic: 0, noCarryLic: 0, noCarryReg: 0, noIns: 0, overload: 0, oversize: 0, busOver: 0, vneid: 0.3 };
     return Object.assign({}, G.shift, { p: zero, react: { coop: 1 }, flee: 0, scope: null, radar: false });
   },
-  xLanes() { return MAP.cur.lanes.filter(L => L.axis === 'x' && !L.wrong && !L.noSpawn); },
+  xLanes() { return MAP.cur.lanes.filter(L => L.axis === 'x' && !L.wrong && !L.noSpawn && !L.emer); },
   spawn(L, s, kind, props) {
     const sh = Object.assign(EVENTS.cleanShift(), { mix: { [kind === 'amb' ? 'car' : kind]: 1 } });
     const v = TRAFFIC.make(L, sh, s);
@@ -133,7 +135,7 @@ const EVENTS = {
       }
       UI.toast('📻 Nhóm thanh niên đua xe trái phép, lạng lách trên tuyến!', 'bad');
     } else if (type === 'help') {
-      A.variant = U.pick(G.cp ? ['child', 'old', 'break', 'amb'] : ['amb', 'break', 'child', 'old']);
+      A.variant = U.pick(m.kind === 'expressway' ? ['amb', 'break'] : G.cp ? ['child', 'old', 'break', 'amb'] : ['amb', 'break', 'child', 'old']);
       A.title = { amb: 'Mở đường cho xe cấp cứu', break: 'Ô tô chết máy giữa đường', child: 'Trẻ em bị lạc', old: 'Cụ già cần qua đường' }[A.variant];
       A.limit = 60;
       if (!G.cp) {
@@ -355,7 +357,7 @@ const MISSIONS = {
   POOL: [
     { id: 'helmet', text: 'Xử lý đúng 3 trường hợp không đội mũ bảo hiểm', need: 3, reward: 40, ok: c => c.mode !== 'car', count: () => MISSIONS.sumViol(['m_helmet', 'm_pass_helmet']) },
     { id: 'alc', text: 'Phát hiện 2 trường hợp vi phạm nồng độ cồn', need: 2, reward: 50, ok: c => c.shift.p.alcohol >= 0.05 || c.mode === 'car', count: () => MISSIONS.sumViol(['m_alc', 'c_alc']) },
-    { id: 'docs', text: 'Phát hiện 3 lỗi về giấy tờ', need: 3, reward: 40, ok: () => true, count: () => MISSIONS.sumViol(['m_no', 'c_no']) },
+    { id: 'docs', text: 'Phát hiện 3 lỗi về giấy tờ', need: 3, reward: 40, ok: () => true, count: () => MISSIONS.sumViol(['m_nolicense', 'm_nocarry', 'm_noins', 'c_nolicense', 'c_nocarry', 'c_noins']) },
     { id: 'load', text: 'Xử lý 2 xe quá tải hoặc quá khổ', need: 2, reward: 50, ok: c => c.mode === 'car' || c.shift.p.overload > 0, count: () => MISSIONS.sumViol(['c_load', 'c_height']) },
     { id: 'bus', text: 'Xử lý 1 xe khách chở quá số người', need: 1, reward: 40, ok: c => c.mode === 'car' || (c.shift.mix.bus || 0) > 0.02, count: () => MISSIONS.sumViol(['c_bus']) },
     { id: 'speed', text: 'Xử lý 2 xe chạy quá tốc độ', need: 2, reward: 40, ok: c => c.shift.radar, count: () => MISSIONS.sumViol(['m_speed', 'c_speed']) },
@@ -364,6 +366,12 @@ const MISSIONS = {
     { id: 'event', text: 'Xử lý tốt 2 tình huống đặc biệt', need: 2, reward: 60, ok: () => EVENTS.plan.length >= 2, count: () => G.tally.events },
     { id: 'stops', text: 'Kiểm tra 6 phương tiện', need: 6, reward: 30, ok: () => true, count: () => G.stats.stops },
     { id: 'pass', text: 'Cho qua đúng 4 phương tiện không vi phạm', need: 4, reward: 30, ok: c => c.mode === 'cp' && !c.shift.checkpoint, count: () => G.stats.passOk },
+    { id: 'xway', text: 'Xử lý 2 vi phạm trên làn dừng khẩn cấp', need: 2, reward: 50, ok: c => MAP.cur.kind === 'expressway' && c.mode !== 'cp', count: () => MISSIONS.sumViol(['c_emerlane', 'c_estop']) },
+    { id: 'assist', text: 'Hỗ trợ đúng 1 xe gặp sự cố trên làn khẩn cấp', need: 1, reward: 40, ok: c => MAP.cur.kind === 'expressway' && c.mode !== 'cp', count: () => G.tally.assist || 0 },
+    { id: 'slow', text: 'Phát hiện 1 xe chạy dưới tốc độ tối thiểu', need: 1, reward: 40, ok: c => MAP.cur.kind === 'expressway' && c.shift.p.slow > 0, count: () => MISSIONS.sumViol(['c_minspeed']) },
+    { id: 'xmoto', text: 'Xử lý 1 xe máy đi vào đường cao tốc', need: 1, reward: 40, ok: () => MAP.cur.kind === 'expressway', count: () => MISSIONS.sumViol(['m_expressway']) },
+    { id: 'yield', text: 'Xử lý 2 xe không nhường đường ở vòng xuyến', need: 2, reward: 50, ok: () => MAP.cur.kind === 'newtown', count: () => MISSIONS.sumViol(['m_noyield', 'c_noyield']) },
+    { id: 'rail', text: 'Xử lý 1 xe vượt đường ngang khi đèn đỏ đã bật', need: 1, reward: 50, ok: () => MAP.cur.kind === 'newtown', count: () => MISSIONS.sumViol(['m_rail', 'c_rail']) },
     { id: 'clean', text: 'Không để lọt phương tiện vi phạm nào', need: 1, reward: 50, end: true, ok: () => true, count: () => (G.stats.escaped === 0 && G.stats.stops >= 3 ? 1 : 0) },
     { id: 'proc', text: 'Ứng xử chuẩn mực trong mọi lượt (ít nhất 4 lượt)', need: 1, reward: 40, end: true, ok: () => true, count: () => (G.stats.procBad === 0 && G.stats.stops >= 4 ? 1 : 0) }
   ],

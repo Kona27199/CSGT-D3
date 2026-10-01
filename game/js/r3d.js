@@ -261,6 +261,7 @@ const R3 = {
       const L = m.lanes[m.cpLane];
       for (let x = m.cpSpot.x - 150; x <= m.cpSpot.x + 30; x += 18) { S.cone(x, 0, L.pos - 8, 1.6, 4.5, '#ff7b00', 8); S.cyl(x, 1.6, L.pos - 8, 1.15, 1, '#ffffff', 8); }
     }
+    R3.buildSpecial(root, S, m);
     /* biển báo (mặt biển luôn quay về phía camera) */
     for (const s of m.signs) {
       S.cyl(s.x, 0, s.y, 0.45, 13, '#8d8d8d', 6);
@@ -277,6 +278,7 @@ const R3 = {
     for (const L of m.lanes) {
       if (L.wrong) continue;
       for (const St of L.stops) {
+        if (St.inter.round || St.inter.rail) continue;
         const key = St.inter.id + L.axis + L.dir;
         if (done[key]) continue;
         done[key] = true;
@@ -330,6 +332,66 @@ const R3 = {
     R3.evPed = null;
   },
 
+  /* Công trình riêng của bản đồ mới: dải phân cách, hộ lan, giá long môn, đường ray, rào chắn, đảo vòng xuyến */
+  buildSpecial(root, S, m) {
+    R3.barriers = []; R3.trains = [];
+    if (m.kind === 'expressway') {
+      const y = 12 * TILE + 8;
+      let x0 = 0;
+      const gaps = (m.medianGaps || []).slice().sort((a, b) => a.x0 - b.x0);
+      for (const gp of gaps.concat([{ x0: m.pw, x1: m.pw }])) {
+        if (gp.x0 - x0 > 4) { S.box((x0 + gp.x0) / 2, 0, y, gp.x0 - x0, 3.2, 2.6, '#cfccc5'); S.box((x0 + gp.x0) / 2, 3.2, y, gp.x0 - x0, 0.6, 1.6, '#e4e1da'); }
+        x0 = gp.x1;
+      }
+    }
+    for (const gy of m.guard || []) {
+      S.box(m.pw / 2, 2.2, gy, m.pw, 1.4, 0.5, '#c9ced4');
+      for (let x = 4; x < m.pw; x += 12) S.box(x, 0, gy, 0.6, 2.8, 0.6, '#6b7078');
+    }
+    for (const p of m.props) if (p.type === 'gantry') {
+      for (const z of [p.y, p.y + p.h]) S.box(p.x, 0, z, 1.4, 24, 1.4, '#8a9096');
+      S.box(p.x, 22, p.y + p.h / 2, 1.6, 2, p.h + 2, '#6b7078');
+      for (const zz of [p.y + 28, p.y + 80]) { S.box(p.x - 0.6, 15.5, zz, 0.6, 7, 22, '#1f7a3a'); S.box(p.x - 1, 17.5, zz, 0.3, 0.8, 16, '#ffffff'); S.box(p.x - 1, 19.5, zz - 3, 0.3, 0.8, 10, '#ffffff'); }
+    }
+    for (const r of m.rails) {
+      for (const dx of [-4, 3.5]) S.box(r.x + dx, 0, m.ph / 2, 0.8, 0.7, m.ph, '#9aa3ab');
+    }
+    if (m.island) {
+      const I = m.island;
+      S.cyl(I.x, 0, I.y, I.r + 1.5, 0.9, '#e8e8e8', 8); S.cyl(I.x, 0.9, I.y, I.r, 0.3, '#6aae52', 8);
+      S.cyl(I.x, 1, I.y, 7, 2.5, '#b9b3a8', 8); S.cyl(I.x, 3.5, I.y, 2.2, 16, '#e4ded2', 6); S.ico(I.x, 21, I.y, 3.2, '#d4a017');
+      for (let a = 0; a < 14; a++) { const an = a / 14 * Math.PI * 2; S.ico(I.x + Math.cos(an) * (I.r - 4), 1.8, I.y + Math.sin(an) * (I.r - 4), 1.6, ['#e87a9b', '#ffd23f', '#f1f1f1', '#e63946'][a % 4]); }
+      for (let a = 0; a < 5; a++) { const an = a / 5 * Math.PI * 2 + 0.3; R3.tree(S, I.x + Math.cos(an) * 14, I.y + Math.sin(an) * 14, 'round', U.rng(a + 9)); }
+    }
+    /* rào chắn đường ngang: cột + cần chắn quay + 2 đèn đỏ nhấp nháy */
+    for (const I of m.inters) {
+      if (!I.rail) continue;
+      for (const dir of [1, -1]) {
+        const L = m.lanes.find(l => l.axis === 'x' && l.dir === dir && !l.emer);
+        if (!L) continue;
+        const bx = dir > 0 ? I.x0 - 3 : I.x1 + 3, top = dir > 0 ? L.pos - 8 : L.pos - 24, bot = top + 32;
+        const pz = dir > 0 ? bot + 2 : top - 2, sgn = dir > 0 ? -1 : 1;
+        S.box(bx, 0, pz, 1.2, 9, 1.2, '#e6e6e6'); S.box(bx, 9, pz, 3.2, 2.2, 1, '#111111');
+        const pivot = new THREE.Group(); pivot.position.set(bx, 5, pz);
+        const AB = R3.B();
+        for (let k = 0; k < 10; k++) AB.box(0, -0.4, sgn * (k * 3 + 1.5), 0.8, 0.8, 3, k % 2 ? '#ffffff' : '#d62828');
+        pivot.add(AB.mesh());
+        root.add(pivot);
+        const lamps = [-1, 1].map(o => { const mm = new THREE.Mesh(R3.sphere, new THREE.MeshBasicMaterial({ color: 0x3a1210 })); mm.scale.setScalar(0.8); mm.position.set(bx + (dir > 0 ? -0.7 : 0.7), 10.1, pz + o * 1); root.add(mm); return mm; });
+        R3.barriers.push({ I: I, pivot: pivot, sgn: sgn, lamps: lamps });
+      }
+      const g = new THREE.Group(), TB = R3.B();
+      for (let k = 0; k < 5; k++) {
+        const z = -k * 36 - 17, c = k === 0 ? '#1d4fa3' : '#2a64c4';
+        TB.box(0, 1.5, z, 12, 9, 34, c); TB.box(0, 4, z, 12.2, 1.2, 34.2, '#f1f1f1'); TB.box(0, 7, z, 12.3, 1.8, 30, '#22344a');
+        TB.box(0, 10.5, z, 10, 1, 32, '#b0bec5'); TB.box(0, 0, z - 12, 8, 1.6, 4, '#222'); TB.box(0, 0, z + 12, 8, 1.6, 4, '#222');
+      }
+      TB.box(-3, 3.5, 0.2, 2, 1.2, 0.4, '#fff3a0'); TB.box(3, 3.5, 0.2, 2, 1.2, 0.4, '#fff3a0');
+      g.add(TB.mesh()); g.visible = false; root.add(g);
+      R3.trains.push({ I: I, g: g });
+    }
+  },
+
   disposeTree(o) {
     o.traverse(n => {
       if (n.geometry && n.geometry !== R3.sphere && n.geometry !== R3.lightGeo && n.geometry !== R3._lp && n.geometry !== R3._lpR) n.geometry.dispose();
@@ -355,6 +417,8 @@ const R3 = {
       else if (t === T.YARD) { R(x, y, 16, 16, '#b7bcc2'); R(x, y, 16, 0.4, '#a5aab0'); R(x, y, 0.4, 16, '#a5aab0'); }
       else if (t === T.WATER) { R(x, y, 16, 16, '#4ea3d8'); if (rnd() < 0.5) R(x + rnd() * 10, y + rnd() * 14, 5, 0.6, '#7cc1ea'); }
       else if (t === T.PADDY) { R(x, y, 16, 16, '#8fcf63'); for (let a = 1; a < 16; a += 3) R(x + a, y, 1.2, 16, '#79b852'); }
+      else if (t === T.MEDIAN) R(x, y, 16, 16, '#7cbf5a');
+      else if (t === T.RAIL) { R(x, y, 16, 16, '#9a9288'); for (let k = 1; k < 16; k += 4) R(x + 1.5, y + k, 13, 2, '#7a5a3a'); }
     }
     for (let ty = 0; ty < m.h; ty++) for (let tx = 0; tx < m.w; tx++) {
       const t = MAP.get(m, tx, ty), x = tx * TILE, y = ty * TILE;
@@ -365,6 +429,7 @@ const R3 = {
         if (t === T.WATER && o !== T.WATER && o !== T.ROAD && o !== T.SHOULDER) R(a, b, w, h, '#8d7a55');
       }
     }
+    MAP.drawSpecialGround(g, m);
     MAP.drawMarkings(g, m);
     for (const h of m.manholes) { R(h.x - 2, h.y - 2, 4, 4, '#3a3d42'); R(h.x - 1.5, h.y - 1.5, 3, 3, '#5f636a'); }
     for (const bp of m.bumps) for (let y = bp.y0; y < bp.y1; y += 2) R(bp.x, y, 3, 2, (y / 2) % 2 ? '#1a1a1a' : '#ffd23f');
@@ -499,6 +564,13 @@ const R3 = {
 
   parkedBike(S, pk) {
     const rnd = U.rng(Math.floor(pk.x * 7 + pk.y * 13));
+    if (pk.car) {
+      const c = ['#c1121f', '#f1f1f1', '#262626', '#3a86ff', '#6c757d', '#e9c46a'][Math.floor(rnd() * 6)];
+      const x = pk.x + 6, z = pk.y + 11;
+      S.box(x, 0.8, z, 12, 3.6, 22, c); S.box(x, 4.4, z + 1, 10, 3.2, 11, '#22344a'); S.box(x, 7.6, z + 1, 10.2, 0.7, 10.5, c);
+      for (const [a, b] of [[-5, -7], [5, -7], [-5, 7], [5, 7]]) S.box(x + a, 0, z + b, 1.6, 3.6, 3.6, '#151515');
+      return;
+    }
     const col = ['#c1121f', '#222222', '#3a86ff', '#e9e9e9', '#6a4c93', '#2a9d8f', '#d4a017'][Math.floor(rnd() * 7)];
     const x = pk.x + 2, z = pk.y + 6;
     S.box(x, 1, z, 2.2, 3, 11, col); S.box(x, 0, z - 4.5, 1.2, 2.8, 2.6, '#151515'); S.box(x, 0, z + 4.5, 1.2, 2.8, 2.6, '#151515');
@@ -565,6 +637,12 @@ const R3 = {
     const g = new THREE.Group();
     const mesh = B.mesh(); g.add(mesh);
     if (v.kind === 'amb') { R3.addBar(g, 2, 7.6, 0); }
+    if (v.estop) {
+      const hz = new THREE.Group(); hz.name = 'hz'; hz.visible = false;
+      const hm = new THREE.MeshBasicMaterial({ color: 0xffb000 });
+      for (const [a, b] of [[L / 2, W / 2 - 1.5], [L / 2, -W / 2 + 1.5], [-L / 2, W / 2 - 1.5], [-L / 2, -W / 2 + 1.5]]) { const mm = new THREE.Mesh(R3.sphere, hm); mm.scale.setScalar(1.1); mm.position.set(a, 4, b); hz.add(mm); }
+      g.add(hz);
+    }
     /* đèn pha hắt sáng xuống mặt đường (ban đêm) */
     const hl = new THREE.Mesh(R3.lightPlane(), R3.headMat());
     hl.position.set(L / 2 + 18, 0.4, 0); hl.scale.set(v.kind === 'moto' ? 0.7 : 1, 1, v.kind === 'moto' ? 0.6 : 1);
@@ -687,6 +765,7 @@ const R3 = {
       g.rotation.y = -(TRAFFIC.angle(v) + (v.crashAngle || 0));
       const hl = g.getObjectByName('hl'); if (hl) hl.visible = night && v.state !== 'crash';
       if (v.kind === 'amb') R3.flashBar(g, t);
+      const hz = g.getObjectByName('hz'); if (hz) hz.visible = v.estop.hazard && (v.parked || v.state === 'stopped') && Math.floor(t * 2.5) % 2 === 0;
     }
     R3.vmap.forEach((g, v) => { if (!seen.has(v)) { R3.disposeTree(g); R3.vmap.delete(v); } });
   },
@@ -753,6 +832,23 @@ const R3 = {
     }
   },
 
+  syncRail(t) {
+    for (const B of R3.barriers || []) {
+      const d = TRAFFIC.barrierDown(B.I);
+      B.pivot.rotation.x = -B.sgn * (1 - d) * Math.PI / 2 * 0.98;
+      const on = Math.floor(t * 3) % 2 === 0, fl = B.I.st !== 'g';
+      B.lamps[0].material.color.setHex(fl && on ? 0xff3b30 : 0x3a1210);
+      B.lamps[1].material.color.setHex(fl && !on ? 0xff3b30 : 0x3a1210);
+    }
+    for (const T2 of R3.trains || []) {
+      const tr = T2.I.train;
+      T2.g.visible = !!tr;
+      if (!tr) continue;
+      T2.g.position.set(tr.x, 0, tr.y);
+      T2.g.rotation.y = tr.dir > 0 ? 0 : Math.PI;
+    }
+  },
+
   syncSmoke(cam) {
     const parts = LIFE.parts.filter(q => !q.ring);
     for (let i = 0; i < R3.smoke.length; i++) {
@@ -781,6 +877,11 @@ const R3 = {
     const d = R3.DIST[R3.zoomIdx];
     if (!R3.scene.fog) R3.scene.fog = new THREE.Fog(bg, 1, 2);
     R3.scene.fog.color.copy(bg); R3.scene.fog.near = d * (rain ? 0.7 : 1.1); R3.scene.fog.far = d * (rain ? 2.2 : 3.4);
+    if (DATA.hasMod(G.shift, 'fog')) {
+      const fc = R3.col(L === 'night' ? '#2a3040' : '#c9d0d6');
+      R3.scene.background = fc; R3.scene.fog.color.copy(fc);
+      R3.scene.fog.near = d * 0.55; R3.scene.fog.far = d * 1.45;
+    }
     R3.hemi.color.copy(R3.col(P.sky)); R3.hemi.groundColor.copy(R3.col(P.gnd)); R3.hemi.intensity = P.hi * (rain ? 0.8 : 1);
     R3.sun.color.copy(R3.col(P.sun)); R3.sun.intensity = P.si * (rain ? 0.55 : 1);
     const night = L === 'night', dusk = L === 'dusk';
@@ -876,6 +977,7 @@ const R3 = {
     R3.syncPeds(t);
     R3.syncPlayer(t, night);
     R3.syncSmoke();
+    R3.syncRail(t);
     R3.renderer.render(R3.scene, R3.cam);
   }
 };

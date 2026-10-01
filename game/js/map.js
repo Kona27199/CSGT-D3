@@ -1,14 +1,14 @@
 'use strict';
 /* Bản đồ: sinh lưới ô (tile), làn đường, giao lộ, biển báo; vẽ sẵn nền chi tiết ra canvas phụ (độ phân giải RS) */
 const TILE = 16;
-const T = { GRASS: 0, WALK: 1, ROAD: 2, BUILD: 3, TREE: 4, SHOULDER: 5, WATER: 6, PADDY: 7, DIRT: 8, YARD: 9 };
+const T = { GRASS: 0, WALK: 1, ROAD: 2, BUILD: 3, TREE: 4, SHOULDER: 5, WATER: 6, PADDY: 7, DIRT: 8, YARD: 9, MEDIAN: 10, RAIL: 11 };
 
 const MAP = {
   cur: null,
-  NAMES: { city: 'Phố đô thị', highway: 'Quốc lộ', rural: 'Nông thôn', industrial: 'Khu công nghiệp' },
+  NAMES: { city: 'Phố đô thị', highway: 'Quốc lộ', rural: 'Nông thôn', industrial: 'Khu công nghiệp', expressway: 'Đường cao tốc', newtown: 'Khu đô thị mới' },
 
   build(kind) {
-    const B = { highway: MAP.buildHighway, rural: MAP.buildRural, industrial: MAP.buildIndustrial }[kind] || MAP.buildCity;
+    const B = { highway: MAP.buildHighway, rural: MAP.buildRural, industrial: MAP.buildIndustrial, expressway: MAP.buildExpressway, newtown: MAP.buildNewtown }[kind] || MAP.buildCity;
     const m = B();
     m.kind = kind;
     m.pw = m.w * TILE; m.ph = m.h * TILE;
@@ -21,7 +21,7 @@ const MAP = {
   },
 
   newGrid(w, h) {
-    return { w: w, h: h, tiles: new Uint8Array(w * h), buildings: [], trees: [], lanes: [], inters: [], lamps: [], signs: [], props: [], bridges: [], poles: [], parked: [], manholes: [], bumps: [], windows: [] };
+    return { w: w, h: h, tiles: new Uint8Array(w * h), buildings: [], trees: [], lanes: [], inters: [], lamps: [], signs: [], props: [], bridges: [], poles: [], parked: [], manholes: [], bumps: [], windows: [], rails: [], rails2: [] };
   },
   set(m, x, y, t) { if (x >= 0 && y >= 0 && x < m.w && y < m.h) m.tiles[y * m.w + x] = t; },
   get(m, x, y) { if (x < 0 || y < 0 || x >= m.w || y >= m.h) return T.BUILD; return m.tiles[y * m.w + x]; },
@@ -262,6 +262,96 @@ const MAP = {
     return m;
   },
 
+  /* ================= BẢN ĐỒ 5: ĐƯỜNG CAO TỐC ================= */
+  buildExpressway() {
+    const W = 100, H = 30, m = MAP.newGrid(W, H);
+    MAP.fill(m, 0, 0, W - 1, H - 1, T.PADDY);
+    MAP.fill(m, 0, 7, W - 1, 8, T.GRASS); MAP.fill(m, 0, 16, W - 1, 17, T.GRASS);
+    MAP.fill(m, 0, 9, W - 1, 9, T.SHOULDER); MAP.fill(m, 0, 15, W - 1, 15, T.SHOULDER);
+    MAP.fill(m, 0, 10, W - 1, 11, T.ROAD); MAP.fill(m, 0, 13, W - 1, 14, T.ROAD);
+    MAP.fill(m, 0, 12, W - 1, 12, T.MEDIAN);
+    /* điểm mở dải phân cách (chỉ dành cho xe làm nhiệm vụ) */
+    for (const x of [24, 25, 74, 75]) MAP.set(m, x, 12, T.ROAD);
+    m.medianGaps = [{ x0: 24 * TILE, x1: 26 * TILE }, { x0: 74 * TILE, x1: 76 * TILE }];
+    const lim = 100, min = 60;
+    MAP.lane(m, 'x', -1, 10 * TILE + 8, 9 * TILE + 2, lim, { min: min });
+    MAP.lane(m, 'x', -1, 11 * TILE + 8, 9 * TILE + 2, lim, { min: min });
+    MAP.lane(m, 'x', 1, 13 * TILE + 8, 16 * TILE - 2, lim, { min: min });
+    MAP.lane(m, 'x', 1, 14 * TILE + 8, 16 * TILE - 2, lim, { min: min });
+    MAP.lane(m, 'x', -1, 9 * TILE + 8, 9 * TILE + 1, lim, { emer: true });
+    MAP.lane(m, 'x', 1, 15 * TILE + 8, 16 * TILE - 1, lim, { emer: true });
+    for (let x = 4; x < W; x += 8) if (!m.medianGaps.some(g => x * TILE + 8 > g.x0 - 20 && x * TILE + 8 < g.x1 + 20)) m.lamps.push({ x: x * TILE + 8, y: 12 * TILE + 8, median: true });
+    for (let x = 8; x < W; x += 30) {
+      m.signs.push({ x: x * TILE + 8, y: 16 * TILE + 10, type: 'limit', v: lim });
+      m.signs.push({ x: (x + 2) * TILE + 8, y: 16 * TILE + 10, type: 'minspeed', v: min });
+      m.signs.push({ x: (x + 15) * TILE + 8, y: 8 * TILE + 12, type: 'limit', v: lim });
+      m.signs.push({ x: (x + 13) * TILE + 8, y: 8 * TILE + 12, type: 'minspeed', v: min });
+    }
+    m.props.push({ type: 'gantry', x: 40 * TILE, y: 9 * TILE, h: 7 * TILE });
+    m.props.push({ type: 'gantry', x: 88 * TILE, y: 9 * TILE, h: 7 * TILE });
+    m.guard = [9 * TILE, 16 * TILE];
+    /* trạm dừng nghỉ phía Nam */
+    MAP.fill(m, 40, 18, 60, 23, T.YARD); MAP.fill(m, 40, 24, 60, 25, T.WALK);
+    m.buildings.push({ x: 44, y: 26, w: 13, h: 3, style: 'shop', c: '#e8d8b0', seed: 777 }); MAP.fill(m, 44, 26, 56, 28, T.BUILD);
+    for (let i = 0; i < 4; i++) m.props.push({ type: 'stall', x: (41 + i * 5) * TILE, y: 24 * TILE, c: ['#e63946', '#1d4fa3', '#2a9d8f', '#ff7b00'][i] });
+    for (let i = 0; i < 6; i++) m.parked.push({ x: (46 + i * 1.6) * TILE, y: 20 * TILE, car: true });
+    /* làng quê, ruộng hai bên */
+    MAP.fillIf(m, 6, 0, 20, 5, T.PADDY, T.GRASS); MAP.fillIf(m, 64, 0, 82, 5, T.PADDY, T.GRASS); MAP.fillIf(m, 8, 20, 26, H - 1, T.PADDY, T.GRASS); MAP.fillIf(m, 70, 20, 92, H - 1, T.PADDY, T.GRASS);
+    MAP.fillBlock(m, 6, 0, 20, 5, 'house', 'bamboo', { wMin: 3, wMax: 5, hMax: 3, trees: 0.25 });
+    MAP.fillBlock(m, 64, 0, 82, 5, 'house', 'bamboo', { wMin: 3, wMax: 5, hMax: 3, trees: 0.25 });
+    MAP.fillBlock(m, 8, 20, 26, H - 1, 'house', 'palm', { wMin: 3, wMax: 5, hMax: 3, trees: 0.25 });
+    MAP.fillBlock(m, 70, 20, 92, H - 1, 'house', 'bamboo', { wMin: 3, wMax: 5, hMax: 3, trees: 0.25 });
+    for (let x = 1; x < W; x += 3) { if (U.chance(0.55)) MAP.addTree(m, x, 7, 'round'); if (U.chance(0.55) && (x < 39 || x > 61)) MAP.addTree(m, x, 17, 'round'); }
+    m.trees = m.trees.filter(t => MAP.get(m, t.x, t.y) === T.TREE);
+    for (let i = 0; i < 8; i++) m.props.push({ type: 'haystack', x: U.int(1, W - 2) * TILE, y: U.pick([U.int(1, 5), U.int(24, 28)]) * TILE });
+    MAP.meta(m, 3, { x: 30 * TILE, y: 15 * TILE + 12 }, { x: 12 * TILE, y: 14 * TILE + 8 }, { lane: 2, s: 62 * TILE });
+    return m;
+  },
+
+  /* ================= BẢN ĐỒ 6: KHU ĐÔ THỊ MỚI (vòng xuyến + đường ngang giao cắt đường sắt) ================= */
+  buildNewtown() {
+    const W = 80, H = 40, m = MAP.newGrid(W, H);
+    MAP.fill(m, 0, 15, W - 1, 16, T.WALK); MAP.fill(m, 0, 21, W - 1, 22, T.WALK);
+    MAP.fill(m, 25, 0, 26, H - 1, T.WALK); MAP.fill(m, 29, 0, 30, H - 1, T.WALK);
+    MAP.fill(m, 0, 17, W - 1, 20, T.ROAD);
+    MAP.fill(m, 27, 0, 28, H - 1, T.ROAD);
+    MAP.fill(m, 24, 15, 31, 22, T.ROAD);
+    /* đường sắt chạy dọc, cắt ngang đại lộ */
+    const RX = 60;
+    for (let y = 0; y < H; y++) if (MAP.get(m, RX, y) !== T.ROAD) MAP.set(m, RX, y, T.RAIL);
+    m.rails.push({ x: RX * TILE + 8 });
+    const lim = 50;
+    MAP.lane(m, 'x', -1, 17 * TILE + 8, 17 * TILE, lim);
+    MAP.lane(m, 'x', -1, 18 * TILE + 8, 17 * TILE, lim);
+    MAP.lane(m, 'x', 1, 19 * TILE + 8, 21 * TILE, lim);
+    MAP.lane(m, 'x', 1, 20 * TILE + 8, 21 * TILE, lim);
+    MAP.lane(m, 'y', 1, 27 * TILE + 8, 27 * TILE, lim);
+    MAP.lane(m, 'y', -1, 28 * TILE + 8, 29 * TILE, lim);
+    m.inters.push({ id: 0, round: true, x0: 24 * TILE, x1: 32 * TILE, y0: 15 * TILE, y1: 23 * TILE, phase: 0, t: 0 });
+    m.island = { x: 28 * TILE, y: 19 * TILE, r: 26, ring: 64 };
+    m.inters.push({ id: 1, rail: true, x0: RX * TILE - 6, x1: (RX + 1) * TILE + 6, y0: 17 * TILE, y1: 21 * TILE, phase: 0, t: 0, st: 'g', next: U.range(10, 18) });
+    for (let x = 2; x < W; x += 6) {
+      if ((x >= 22 && x <= 33) || (x >= RX - 2 && x <= RX + 2)) continue;
+      m.lamps.push({ x: x * TILE + 8, y: 15 * TILE + 3 }); m.lamps.push({ x: x * TILE + 8, y: 22 * TILE + 13 });
+    }
+    for (let y = 2; y < H; y += 6) { if (y >= 13 && y <= 24) continue; m.lamps.push({ x: 26 * TILE + 13, y: y * TILE + 8 }); m.lamps.push({ x: 29 * TILE + 3, y: y * TILE + 8 }); }
+    /* biển báo: vòng xuyến, nhường đường, đường ngang có rào chắn, tốc độ */
+    m.signs.push({ x: 20 * TILE + 8, y: 22 * TILE + 8, type: 'round' }); m.signs.push({ x: 21 * TILE + 8, y: 22 * TILE + 8, type: 'giveway' });
+    m.signs.push({ x: 36 * TILE + 8, y: 15 * TILE + 8, type: 'round' }); m.signs.push({ x: 35 * TILE + 8, y: 15 * TILE + 8, type: 'giveway' });
+    m.signs.push({ x: 26 * TILE + 8, y: 11 * TILE + 8, type: 'round' }); m.signs.push({ x: 26 * TILE + 8, y: 12 * TILE + 8, type: 'giveway' });
+    m.signs.push({ x: 29 * TILE + 8, y: 27 * TILE + 8, type: 'round' }); m.signs.push({ x: 29 * TILE + 8, y: 26 * TILE + 8, type: 'giveway' });
+    m.signs.push({ x: (RX - 7) * TILE + 8, y: 22 * TILE + 8, type: 'railx' }); m.signs.push({ x: (RX + 8) * TILE + 8, y: 15 * TILE + 8, type: 'railx' });
+    m.signs.push({ x: 4 * TILE + 8, y: 22 * TILE + 8, type: 'limit', v: lim }); m.signs.push({ x: 76 * TILE + 8, y: 15 * TILE + 8, type: 'limit', v: lim });
+    /* khu nhà: chung cư cao tầng, nhà phố thương mại; hồ điều hòa phía Đông */
+    MAP.fill(m, 66, 26, 77, 35, T.WATER);
+    const blocks = [[0, 0, 23, 13], [32, 0, RX - 2, 13], [RX + 2, 0, W - 1, 13], [0, 24, 23, H - 1], [32, 24, RX - 2, H - 1], [RX + 2, 24, 64, H - 1]];
+    blocks.forEach((b, i) => MAP.fillBlock(m, b[0], b[1], b[2], b[3], i % 3 === 0 ? 'dorm' : () => U.pick(['shop', 'shop', 'dorm']), 'round', { wMin: 5, wMax: 8, hMin: 4, hMax: 6, trees: 0.2 }));
+    for (let i = 0; i < 6; i++) m.props.push({ type: 'bench', x: (66 + i * 2) * TILE, y: 25 * TILE + 4 });
+    m.trees = m.trees.filter(t => MAP.get(m, t.x, t.y) === T.TREE);
+    MAP.meta(m, 3, { x: 12 * TILE, y: 21 * TILE + 10 }, { x: 8 * TILE, y: 20 * TILE + 8 }, { lane: 2, s: 44 * TILE });
+    return m;
+  },
+
   meta(m, cpLane, cpSpot, vehSpawn, acc) {
     m.cpLane = cpLane; m.cpSpot = cpSpot; m.vehSpawn = vehSpawn; m.accidentSpot = acc;
     m.spawn = cpSpot;
@@ -276,6 +366,7 @@ const MAP = {
         const c0 = L.axis === 'x' ? I.y0 : I.x0, c1 = L.axis === 'x' ? I.y1 : I.x1;
         if (L.pos < c0 || L.pos > c1) continue;
         L.stops.push({ inter: I, at: L.dir > 0 ? a0 - 14 : a1 + 14, a0: a0, a1: a1 });
+        if (I.round) L.rb = { c: (a0 + a1) / 2, ac: (c0 + c1) / 2, H: (a1 - a0) / 2 };
       }
       L.stops.sort((p, q) => (p.at - q.at) * L.dir);
     }
@@ -331,6 +422,14 @@ const MAP = {
         R(x, y, 16, 16, '#3c7fb3');
         for (let i = 0; i < 4; i++) R(x + U.rand() * 12, y + U.rand() * 15, 2 + U.rand() * 2, 0.5, '#5ea3d6');
         if (U.rand() < 0.15) R(x + U.rand() * 14, y + U.rand() * 14, 1, 0.5, '#bfe3ff');
+      } else if (t === T.MEDIAN) {
+        R(x, y, 16, 16, '#5b9a45'); speck(x, y, 10, ['#4d8a3b', '#6aae52'], 1);
+        R(x, y + 5.5, 16, 5, '#c9c6bf'); R(x, y + 5.5, 16, 1, '#e4e1da'); R(x, y + 10, 16, 1, '#9d9a93');
+        for (let k = 0; k < 16; k += 4) R(x + k, y + 7, 0.5, 2, '#b0ada6');
+      } else if (t === T.RAIL) {
+        R(x, y, 16, 16, '#8b8378'); speck(x, y, 20, ['#7a7368', '#9c9488', '#6d665c']);
+        for (let k = 1; k < 16; k += 4) R(x + 1.5, y + k, 13, 2, '#6b4a2b');
+        R(x + 4, y, 1, 16, '#c8cdd2'); R(x + 11, y, 1, 16, '#c8cdd2'); R(x + 4.5, y, 0.5, 16, '#7d838a'); R(x + 11.5, y, 0.5, 16, '#7d838a');
       } else if (t === T.PADDY) {
         R(x, y, 16, 16, '#4b8b39');
         for (let a = 0.5; a < 16; a += 2) { R(x + a, y, 1, 16, '#5ea044'); for (let b = 0.5; b < 16; b += 2) R(x + a, y + b, 1, 1, U.rand() < 0.5 ? '#76b956' : '#69aa4c'); }
@@ -356,6 +455,7 @@ const MAP = {
       for (let y = y0; y < y1; y += 2) { R(x0 - 1.5, y, 2, 0.75, '#8a8a8a'); R(x1 - 0.5, y, 2, 0.75, '#8a8a8a'); }
       R(x0 - 2, y0 + 1, 1, y1 - y0 - 2, 'rgba(0,0,0,0.25)');
     }
+    MAP.drawSpecialGround(g, m);
     MAP.drawMarkings(g, m);
     /* nắp cống, gờ giảm tốc */
     for (const h of m.manholes) { R(h.x - 2, h.y - 2, 4, 4, '#2f3136'); R(h.x - 1.5, h.y - 1.5, 3, 3, '#55585e'); R(h.x - 1.5, h.y - 0.25, 3, 0.5, '#2f3136'); R(h.x - 0.25, h.y - 1.5, 0.5, 3, '#2f3136'); }
@@ -381,6 +481,7 @@ const MAP = {
     f.scale(RS, RS);
     const sorted = m.buildings.slice().sort((p, q) => p.y - q.y);
     for (const b of sorted) MAP.drawBuilding3D(f, b, m);
+    for (const p of m.props) if (p.type === 'gantry') MAP.drawGantry(f, p, m);
     for (const s2 of m.signs) MAP.drawSign(f, s2);
     for (const l of m.lamps) MAP.drawLampPost(f, l);
     MAP.drawPoles(f, m);
@@ -431,7 +532,23 @@ const MAP = {
       }
       m.signs.push({ x: 20 * TILE + 8, y: 16 * TILE + 6, type: 'noparking' }); m.signs.push({ x: 60 * TILE + 8, y: 23 * TILE + 12, type: 'noparking' });
     }
-    if (m.kind === 'city' || m.kind === 'industrial') {
+    if (m.kind === 'newtown') {
+      for (let x = 3; x < m.w; x += 7) {
+        if ((x >= 22 && x <= 33) || (x >= 57 && x <= 63)) continue;
+        for (const ty of [15, 22]) {
+          const px = x * TILE + 8, py = ty * TILE + 8;
+          if (lampAt(px, py) || MAP.get(m, x, ty) !== T.WALK) continue;
+          MAP.set(m, x, ty, T.TREE); m.trees.push({ x: x, y: ty, k: 'street' });
+        }
+      }
+      for (let i = 0; i < 6; i++) {
+        const ty = U.pick([15, 22]), x = U.int(1, m.w - 6);
+        if ((x > 20 && x < 35) || (x > 55 && x < 65)) continue;
+        let ok = true; for (let k = 0; k < 2; k++) if (MAP.get(m, x + k, ty) !== T.WALK) ok = false;
+        if (ok) for (let k = 0; k < U.int(3, 5); k++) m.parked.push({ x: x * TILE + 3 + k * 5, y: ty * TILE + (ty === 15 ? 2 : 4), up: ty === 22 });
+      }
+    }
+    if (m.kind === 'city' || m.kind === 'industrial' || m.kind === 'newtown') {
       for (let ty = 0; ty < m.h; ty++) for (let tx = 0; tx < m.w; tx++) {
         if (MAP.get(m, tx, ty) === T.ROAD && U.rand() < 0.025 && !m.inters.some(I => tx * TILE >= I.x0 - 16 && tx * TILE <= I.x1 + 16 && ty * TILE >= I.y0 - 16 && ty * TILE <= I.y1 + 16)) m.manholes.push({ x: tx * TILE + U.int(4, 12), y: ty * TILE + U.int(4, 12) });
       }
@@ -534,6 +651,47 @@ const MAP = {
     }
   },
 
+  /* Nền đặc biệt: đường ray cắt qua mặt đường, đảo tròn vòng xuyến, hộ lan tôn sóng cao tốc */
+  drawSpecialGround(g, m) {
+    const R = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(x, y, w, h); };
+    for (const r of m.rails) {
+      for (let ty = 0; ty < m.h; ty++) {
+        if (MAP.get(m, Math.floor(r.x / TILE), ty) !== T.ROAD) continue;
+        const y = ty * TILE;
+        R(r.x - 8, y, 16, 16, '#55524d');
+        R(r.x - 4, y, 1, 16, '#c8cdd2'); R(r.x + 3, y, 1, 16, '#c8cdd2');
+        R(r.x - 5, y, 0.75, 16, '#2c2b29'); R(r.x + 4, y, 0.75, 16, '#2c2b29');
+      }
+    }
+    if (m.island) {
+      const I = m.island;
+      /* bo tròn góc nút giao */
+      for (let yy = I.y - I.ring; yy < I.y + I.ring; yy += 1) for (let xx = I.x - I.ring; xx < I.x + I.ring; xx += 1) {
+        const d = Math.hypot(xx + 0.5 - I.x, yy + 0.5 - I.y);
+        if (d > I.ring - 1 && Math.abs(xx + 0.5 - I.x) > 18 && Math.abs(yy + 0.5 - I.y) > 34) R(xx, yy, 1, 1, d < I.ring ? '#ece7dc' : '#bdb4a5');
+      }
+      g.strokeStyle = 'rgba(230,230,230,0.7)'; g.lineWidth = 0.75; g.setLineDash([5, 5]);
+      g.beginPath(); g.arc(I.x, I.y, 44, 0, Math.PI * 2); g.stroke(); g.setLineDash([]);
+      g.fillStyle = '#ffffff'; g.beginPath(); g.arc(I.x, I.y, I.r + 1.5, 0, Math.PI * 2); g.fill();
+      for (let a = 0; a < 24; a++) { g.fillStyle = a % 2 ? '#d62828' : '#ffffff'; g.beginPath(); g.arc(I.x, I.y, I.r + 1.5, a / 24 * Math.PI * 2, (a + 1) / 24 * Math.PI * 2); g.lineTo(I.x, I.y); g.fill(); }
+      g.fillStyle = '#5b9a45'; g.beginPath(); g.arc(I.x, I.y, I.r, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#6aae52'; g.beginPath(); g.arc(I.x, I.y, I.r - 6, 0, Math.PI * 2); g.fill();
+      for (let a = 0; a < 16; a++) { const an = a / 16 * Math.PI * 2; R(I.x + Math.cos(an) * (I.r - 3) - 1, I.y + Math.sin(an) * (I.r - 3) - 1, 2, 2, ['#e87a9b', '#ffd23f', '#ffffff', '#e63946'][a % 4]); }
+    }
+    if (m.guard) for (const y of m.guard) {
+      for (let x = 0; x < m.pw; x += 1) R(x, y - 0.75, 1, 1.25, x % 8 < 1 ? '#5c5f66' : '#c9ced4');
+    }
+  },
+
+  /* Giá long môn (biển báo phía trên đường cao tốc) */
+  drawGantry(g, p) {
+    const R = (a, b, w, h, c) => { g.fillStyle = c; g.fillRect(a, b, w, h); };
+    const x = p.x, y0 = p.y, y1 = p.y + p.h;
+    R(x - 1, y0 - 18, 2, 18, '#8a9096'); R(x - 1, y1 - 18, 2, 18, '#8a9096');
+    R(x - 1.5, y0 - 20, 3, p.h + 2, '#6b7078');
+    for (let k = 0; k < 2; k++) { const yy = y0 + 18 + k * 50; R(x - 9, yy - 22, 18, 12, '#1f7a3a'); R(x - 8, yy - 21, 16, 10, '#2a9d5a'); R(x - 6, yy - 18, 12, 1, '#ffffff'); R(x - 6, yy - 15, 8, 1, '#ffffff'); }
+  },
+
   drawLampPost(g, l) {
     const R = (a, b, w, h, c) => { g.fillStyle = c; g.fillRect(a, b, w, h); };
     R(l.x - 0.5, l.y - 12, 1, 12.5, '#4a4e54'); R(l.x - 0.5, l.y - 12, 0.4, 12, '#6b7078');
@@ -572,7 +730,7 @@ const MAP = {
       const c0 = L.axis === 'x' ? I.y0 : I.x0, c1 = L.axis === 'x' ? I.y1 : I.x1;
       return s >= a0 - 14 && s <= a1 + 14 && L.pos >= c0 - 8 && L.pos <= c1 + 8;
     });
-    const lanes = m.lanes.filter(L => !L.wrong);
+    const lanes = m.lanes.filter(L => !L.wrong && !L.emer);
     for (const A of lanes) for (const B of lanes) {
       if (A === B || A.axis !== B.axis || B.pos - A.pos !== 16) continue;
       const mid = (A.pos + B.pos) / 2;
@@ -587,20 +745,27 @@ const MAP = {
         else seg(-0.4, 7, '#e2e2e2');
       }
     }
+    if (m.kind === 'expressway') {
+      R(0, 10 * TILE + 0.5, m.pw, 1, '#f0f0f0'); R(0, 15 * TILE - 1.5, m.pw, 1, '#f0f0f0');
+      R(0, 12 * TILE - 1.5, m.pw, 0.75, '#e8c547'); R(0, 13 * TILE + 0.75, m.pw, 0.75, '#e8c547');
+    }
     if (m.kind === 'highway' || m.kind === 'industrial') {
       const xs = lanes.filter(L => L.axis === 'x').map(L => L.pos);
       if (xs.length) { const top = Math.min(...xs) - 8, bot = Math.max(...xs) + 8; R(0, top + 0.5, m.pw, 0.75, '#f0f0f0'); R(0, bot - 1.25, m.pw, 0.75, '#f0f0f0'); }
     }
+    const onRoad = (x, y) => MAP.get(m, Math.floor(x / TILE), Math.floor(y / TILE)) === T.ROAD;
     for (const I of m.inters) {
-      for (let y = I.y0 + 1; y < I.y1; y += 4) { R(I.x0 - 12, y, 10, 2, '#e6e6e6'); R(I.x1 + 2, y, 10, 2, '#e6e6e6'); }
-      for (let x = I.x0 + 1; x < I.x1; x += 4) { R(x, I.y0 - 12, 2, 10, '#e6e6e6'); R(x, I.y1 + 2, 2, 10, '#e6e6e6'); }
+      if (I.rail) continue;
+      for (let y = I.y0 + 1; y < I.y1; y += 4) { if (onRoad(I.x0 - 7, y)) R(I.x0 - 12, y, 10, 2, '#e6e6e6'); if (onRoad(I.x1 + 7, y)) R(I.x1 + 2, y, 10, 2, '#e6e6e6'); }
+      for (let x = I.x0 + 1; x < I.x1; x += 4) { if (onRoad(x, I.y0 - 7)) R(x, I.y0 - 12, 2, 10, '#e6e6e6'); if (onRoad(x, I.y1 + 7)) R(x, I.y1 + 2, 2, 10, '#e6e6e6'); }
     }
     for (const L of lanes) for (const S of L.stops) {
       const ar = S.at - L.dir * 34;
       if (L.axis === 'x') { R(ar - (L.dir > 0 ? 8 : 0), L.pos - 0.75, 8, 1.5, '#dcdcdc'); const tip = ar + (L.dir > 0 ? 0 : -8); for (let k = 0; k < 3; k++) R(tip - L.dir * k, L.pos - 2.5 + k, 1, 5 - 2 * k, '#dcdcdc'); }
       else { R(L.pos - 0.75, ar - (L.dir > 0 ? 8 : 0), 1.5, 8, '#dcdcdc'); const tip = ar + (L.dir > 0 ? 0 : -8); for (let k = 0; k < 3; k++) R(L.pos - 2.5 + k, tip - L.dir * k, 5 - 2 * k, 1, '#dcdcdc'); }
       const a = S.at + (L.dir > 0 ? 1 : -2.5);
-      if (L.axis === 'x') R(a, L.pos - 8, 1.5, 16, '#ffffff'); else R(L.pos - 8, a, 16, 1.5, '#ffffff');
+      if (S.inter.round) { for (let k = -8; k < 8; k += 3) { if (L.axis === 'x') R(a, L.pos + k, 1.5, 2, '#ffffff'); else R(L.pos + k, a, 2, 1.5, '#ffffff'); } }
+      else if (L.axis === 'x') R(a, L.pos - 8, 1.5, 16, '#ffffff'); else R(L.pos - 8, a, 16, 1.5, '#ffffff');
     }
     if (m.oneway) {
       for (let x = 6 * TILE; x < m.pw; x += 14 * TILE) {
@@ -687,10 +852,39 @@ const MAP = {
       for (let k = 0; k < 11; k++) R(-k / 2 + 0.5, -12 + k, k + 0.5, 1, k < 2 ? '#d62828' : '#ffd23f');
       R(-5, -2, 11, 1, '#d62828');
       R(-2, -7, 1.5, 3.5, '#111'); R(0.5, -8, 1.5, 4.5, '#111'); R(-2, -8.25, 1.25, 1.25, '#111'); R(0.5, -9.5, 1.25, 1.25, '#111');
+    } else if (s.type === 'minspeed') {
+      disc('#1d5fbf'); MAP.pixelText(g, String(s.v), x - 2.5, y - 9, '#ffffff');
+    } else if (s.type === 'round') {
+      disc('#1d5fbf');
+      for (let k = 0; k < 3; k++) { const a = k * 2.094 - 1.2, cx = Math.cos(a) * 2.6, cy = -6.5 + Math.sin(a) * 2.6; R(cx - 0.75, cy - 0.75, 1.5, 1.5, '#ffffff'); R(cx + Math.cos(a + 1.57) * 1.2 - 0.5, cy + Math.sin(a + 1.57) * 1.2 - 0.5, 1, 1, '#ffffff'); }
+    } else if (s.type === 'giveway') {
+      for (let k = 0; k < 11; k++) R(-5 + k / 2, -12 + k, 11 - k, 1, k > 8 ? '#d62828' : (k < 1 ? '#d62828' : '#ffffff'));
+      for (let k = 0; k < 9; k++) { R(-5 + k / 2, -12 + k, 1, 1, '#d62828'); R(5.5 - k / 2, -12 + k, 1, 1, '#d62828'); }
+    } else if (s.type === 'railx') {
+      for (let k = 0; k < 11; k++) R(-k / 2 + 0.5, -12 + k, k + 0.5, 1, k < 2 ? '#d62828' : '#ffd23f');
+      R(-5, -2, 11, 1, '#d62828');
+      R(-2.5, -7, 6, 2.5, '#111'); R(-2, -8, 1, 1, '#111'); for (let k = -2.5; k < 3.5; k += 1.5) R(k, -4.5, 0.75, 0.75, '#111');
     } else if (s.type === 'oneway') {
       R(-5, -12, 11, 11, '#1d5fbf'); R(-5, -12, 11, 0.75, '#4a86e0');
       R(-3, -7, 6, 1, '#ffffff'); R(1, -9, 1, 5, '#ffffff'); R(2, -8, 1, 3, '#ffffff');
     }
+  },
+
+  /* Rào chắn đường ngang + cột đèn đỏ nhấp nháy (vẽ mỗi khung hình) */
+  drawBarrier(g, S, L, cam) {
+    const I = S.inter, down = TRAFFIC.barrierDown(I);
+    const t = performance.now() / 1000, flash = I.st !== 'g';
+    const bx = Math.round((L.dir > 0 ? I.x0 - 3 : I.x1 + 3) - cam.x);
+    const top = L.dir > 0 ? L.pos - 8 : L.pos - 24, bot = top + 32;
+    const postY = Math.round((L.dir > 0 ? bot + 2 : top - 2) - cam.y);
+    const R = (a, b, w, h, c) => { g.fillStyle = c; g.fillRect(a, b, w, h); };
+    R(bx - 1, postY - 9, 2, 10, '#e6e6e6'); R(bx - 2.5, postY - 10, 5, 3, '#111');
+    const on = Math.floor(t * 3) % 2 === 0;
+    R(bx - 2, postY - 9.5, 1.5, 2, flash && on ? '#ff3b30' : '#4a1512'); R(bx + 0.5, postY - 9.5, 1.5, 2, flash && !on ? '#ff3b30' : '#4a1512');
+    /* cần chắn: dài theo mức hạ (0 = dựng đứng, 1 = hạ hết) */
+    const len = 30 * down, dirY = L.dir > 0 ? -1 : 1;
+    for (let k = 0; k < len; k += 3) R(bx - 0.75, postY + dirY * (2 + k) - (dirY < 0 ? 3 : 0), 1.5, 3, (k / 3) % 2 ? '#ffffff' : '#d62828');
+    if (down < 0.2) R(bx - 0.75, postY - 14, 1.5, 5, '#d62828');
   },
 
   /* Font pixel 3x5 cho biển báo */
@@ -718,6 +912,8 @@ const MAP = {
         const key = S.inter.id + L.axis + L.dir;
         if (done[key]) continue;
         done[key] = true;
+        if (S.inter.round) continue;
+        if (S.inter.rail) { MAP.drawBarrier(g, S, L, cam); continue; }
         const st = TRAFFIC.lightState(S.inter, L.axis);
         let px, py;
         const off = L.dir > 0 ? 6 : -6;

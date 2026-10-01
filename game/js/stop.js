@@ -83,7 +83,16 @@ const INSPECT = {
     if (v.pass) html += '<div>Trên xe có thêm ' + v.pass + ' người ngồi sau.</div>';
     if (v.redWitnessed) html += '<div class="warn">📷 Tổ công tác đã ghi nhận phương tiện vượt đèn đỏ.</div>';
     if (v.lane.wrong || v.wrongReport) html += '<div class="warn">⛔ Phương tiện đi ngược chiều trên đường một chiều' + (v.wrongReport ? ' (tổ công tác phía trước thông báo)' : '') + '.</div>';
-    if (v.measured != null) html += '<div class="warn">📡 Máy đo tốc độ ghi nhận: <b>' + v.measured + ' km/h</b> (tốc độ tối đa cho phép ' + v.lane.limit + ' km/h).</div>';
+    if (v.measured != null) html += '<div class="warn">📡 Máy đo tốc độ ghi nhận: <b>' + v.measured + ' km/h</b> (tốc độ tối đa cho phép ' + v.lane.limit + ' km/h' + (v.minKmh ? ', tối thiểu ' + v.minKmh + ' km/h' : '') + ').</div>';
+    if (v.xway) html += '<div class="warn">🚫 Xe mô tô đang lưu thông trên đường cao tốc.</div>';
+    if (v.emerDrive) html += '<div class="warn">🛣 Phương tiện chạy trên làn dừng xe khẩn cấp, không có sự cố.</div>';
+    if (v.yieldSeen) html += '<div class="warn">↻ ' + (v.report ? 'Camera giám sát thông báo' : 'Tổ công tác ghi nhận') + ': xe vào vòng xuyến không nhường đường cho xe đang đi trong vòng xuyến.</div>';
+    if (v.railSeen) html += '<div class="warn">🚆 ' + (v.report ? 'Camera giám sát thông báo' : 'Tổ công tác ghi nhận') + ': xe vượt qua đường ngang khi đèn đỏ đã bật sáng, chắn đang hạ.</div>';
+    if (v.estop) {
+      const E = DATA.ESTOP[v.estop.reason];
+      html += '<div class="warn">🅿 Xe đang dừng trên làn dừng khẩn cấp. Đèn khẩn cấp: <b>' + (v.estop.hazard ? 'có bật' : 'KHÔNG bật') + '</b>.</div>';
+      html += '<div>Người điều khiển trình bày: <i>"' + U.esc(U.pick(E.say)) + '"</i>' + (E.check ? ' · Kiểm tra thực tế: ' + U.esc(E.check) : '') + '</div>';
+    }
     if (c.cue) html += '<div class="warn">🍺 Người điều khiển có hơi thở nồng mùi rượu bia, mặt đỏ.</div>';
     if (v.kind === 'truck') html += '<div>Xe tải: khối lượng hàng chuyên chở cho phép ' + v.capT + ' tấn (theo GCN kiểm định).</div>';
     if (v.kind === 'bus') html += '<div>Xe khách tuyến cố định (cự ly dưới 300 km), ' + v.busSeats + ' chỗ theo GCN kiểm định.</div>';
@@ -238,9 +247,15 @@ const INSPECT = {
     if (v.phone) add('📱', 'Người điều khiển dùng tay cầm, sử dụng điện thoại khi đang lái xe', [P + 'phone'], true);
     if (v.lane.wrong || v.wrongReport) add('⛔', 'Phương tiện đi ngược chiều vào đường một chiều' + (v.wrongReport ? ' (tổ công tác phía trước thông báo)' : ''), ['m_wrongway'], true);
     if (v.redWitnessed) add('📷', 'Tổ công tác/camera ghi nhận phương tiện vượt đèn đỏ', [P + 'redlight'], true);
+    if (v.xway) add('🚫', 'Xe mô tô lưu thông trên đường cao tốc', ['m_expressway'], true);
+    if (v.emerDrive) add('🛣', 'Phương tiện chạy trên làn dừng xe khẩn cấp, không gặp sự cố kỹ thuật', ['c_emerlane'], true);
+    if (v.estop) add('🅿', 'Dừng trên làn dừng khẩn cấp · Lý do: ' + DATA.ESTOP[v.estop.reason].label + ' · Đèn khẩn cấp: ' + (v.estop.hazard ? 'có bật' : 'KHÔNG bật'), ['c_estop'], true);
+    if (v.yieldSeen) add('↻', 'Vào vòng xuyến không nhường đường cho xe đang đi trong vòng xuyến (xe đi đến từ bên trái)' + (v.report ? ' – camera giám sát thông báo' : ''), [P + 'noyield'], true);
+    if (v.railSeen) add('🚆', 'Vượt qua đường ngang khi đèn đỏ đã bật sáng, chắn đang hạ' + (v.report ? ' – camera giám sát thông báo' : ''), [P + 'rail'], true);
     if (v.measured != null) {
       const tiers = Object.keys(DATA.VIOLATIONS).filter(k => k.indexOf(P + 'speed') === 0);
-      add('📡', 'Tốc độ đo được: ' + v.measured + ' km/h (tốc độ tối đa cho phép ' + v.lane.limit + ' km/h)', tiers, true);
+      if (v.minKmh && v.veh === 'car') tiers.push('c_minspeed');
+      add('📡', 'Tốc độ đo được: ' + v.measured + ' km/h (tối đa cho phép ' + v.lane.limit + ' km/h' + (v.minKmh ? ', tối thiểu ' + v.minKmh + ' km/h' : '') + ')', tiers, true);
     }
     if (c.tested) {
       add('🍺', 'Kết quả đo nồng độ cồn: ' + v.alc.toFixed(3).replace('.', ',') + ' mg/l khí thở', [P + 'alc1', P + 'alc2', P + 'alc3'], true);
@@ -294,7 +309,7 @@ const INSPECT = {
     const body = box.querySelector('.m-body');
     const intro = document.createElement('p');
     intro.className = 'dim';
-    intro.textContent = 'Với từng bằng chứng, chọn kết luận đúng: lỗi vi phạm và mức phạt tiền (Nghị định 168/2024/NĐ-CP), hoặc "Không vi phạm".';
+    intro.textContent = 'Với từng bằng chứng, chọn kết luận đúng: lỗi vi phạm và mức phạt tiền (Nghị định 168/2024/NĐ-CP; lỗi tại đường ngang: Nghị định 81/2026/NĐ-CP), hoặc "Không vi phạm".';
     body.appendChild(intro);
     const form = document.createElement('div');
     form.className = 'evidence';
@@ -329,7 +344,7 @@ const INSPECT = {
   /* Lỗi có BẮT BUỘC phải phát hiện hay không (khi không có dòng bằng chứng) */
   required(id, c) {
     const V = DATA.VIOLATIONS[id];
-    if (V.group === 'event') return c.v.redWitnessed;
+    if (V.group === 'event') return !!c.v[V.seen || 'redWitnessed'];
     if (V.group === 'alcohol') return c.cue || INSPECT.mustTest(c.v);
     return true;
   },
@@ -369,7 +384,11 @@ const INSPECT = {
       pts -= 10;
       c.notes.push(sh.checkpoint ? '✖ Tại chốt kiểm tra nồng độ cồn theo kế hoạch, phải đo nồng độ cồn người điều khiển.' : '✖ Tuần tra chuyên đề: phải đo nồng độ cồn người điều khiển ô tô.');
     }
-    if (!INSPECT.planned(v) && TRAFFIC.visibleViolations(v).length === 0 && !v.weave && !c.cue) {
+    if (!c.released && v.estop && !TRAFFIC.estopBad(v) && res.every(x => x.st === 'ok')) {
+      G.tally.assist = (G.tally.assist || 0) + 1;
+      c.notes.push('✔ Xe gặp sự cố, đã bật đèn khẩn cấp đúng quy định: hướng dẫn người dân đứng sau hộ lan, liên hệ cứu hộ, cảnh báo an toàn.');
+    }
+    if (!INSPECT.planned(v) && TRAFFIC.visibleViolations(v).length === 0 && !v.weave && !c.cue && !v.estop) {
       pts -= 10;
       c.notes.push('✖ Dừng xe khi chưa phát hiện dấu hiệu vi phạm (ca này không có kế hoạch kiểm soát chung).');
     }

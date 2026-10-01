@@ -13,7 +13,8 @@
 const DATA = {};
 
 DATA.LEGAL_NOTE =
-  'Căn cứ: Nghị định 168/2024/NĐ-CP ngày 26/12/2024 của Chính phủ (hiệu lực 01/01/2025). ' +
+  'Căn cứ: Nghị định 168/2024/NĐ-CP ngày 26/12/2024 của Chính phủ (hiệu lực 01/01/2025); ' +
+  'riêng lỗi vượt đường ngang (giao cắt đường sắt): Nghị định 81/2026/NĐ-CP ngày 19/3/2026 (hiệu lực 15/5/2026). ' +
   'Mục có dấu ⚠ là căn cứ điều/khoản hoặc mức trừ điểm cần đối chiếu lại văn bản gốc. ' +
   'Nội dung trong game chỉ mang tính giáo dục, tham khảo.';
 
@@ -34,6 +35,9 @@ DATA.VIOLATIONS = {
   m_nolicense:   { veh: 'moto', group: 'docs',    name: 'Không có giấy phép lái xe (xe dung tích xi lanh đến 125 cm³)', fine: [2000000, 4000000], basis: 'Điều 18', extra: '', verify: true },
   m_nocarry_lic: { veh: 'moto', group: 'docs',    name: 'Không mang theo giấy phép lái xe', fine: [200000, 300000], basis: 'Điều 18', extra: '', verify: true },
   m_nocarry_reg: { veh: 'moto', group: 'docs',    name: 'Không mang theo chứng nhận đăng ký xe', fine: [200000, 300000], basis: 'Điểm c khoản 2 Điều 18', extra: '', verify: true },
+  m_expressway:  { veh: 'moto', group: 'visible', name: 'Điều khiển xe mô tô, xe gắn máy đi vào đường cao tốc', fine: [4000000, 6000000], basis: 'Khoản 7 Điều 7', extra: 'Trừ 06 điểm GPLX', verify: true },
+  m_noyield:     { veh: 'moto', group: 'event',   seen: 'yieldSeen', name: 'Không giảm tốc độ và nhường đường cho xe đi đến từ bên trái tại nơi đường giao nhau có báo hiệu đi theo vòng xuyến', fine: [2000000, 3000000], basis: 'Điểm d khoản 6 Điều 7', extra: 'Trừ 02 điểm GPLX', verify: true },
+  m_rail:        { veh: 'moto', group: 'event',   seen: 'railSeen', name: 'Vượt qua đường ngang (giao cắt đường sắt) khi đèn đỏ đã bật sáng, chắn đang dịch chuyển', fine: [4000000, 6000000], basis: 'Khoản 6 Điều 13 Nghị định 81/2026/NĐ-CP', extra: 'Tước quyền sử dụng GPLX từ 01 đến 03 tháng', verify: true },
   m_noins:       { veh: 'moto', group: 'docs',    name: 'Không có hoặc không mang theo Giấy chứng nhận bảo hiểm bắt buộc TNDS còn hiệu lực', fine: [200000, 300000], basis: 'Điều 18', extra: '', verify: true },
 
   /* ---------------- XE Ô TÔ (Điều 6, Điều 18) ---------------- */
@@ -46,6 +50,11 @@ DATA.VIOLATIONS = {
   c_alc1:        { veh: 'car', group: 'alcohol', name: 'Nồng độ cồn chưa vượt quá 0,25 mg/1 lít khí thở', fine: [6000000, 8000000], basis: 'Điều 6', extra: 'Trừ 04 điểm GPLX', verify: true },
   c_alc2:        { veh: 'car', group: 'alcohol', name: 'Nồng độ cồn vượt quá 0,25 mg đến 0,4 mg/1 lít khí thở', fine: [18000000, 20000000], basis: 'Điều 6', extra: 'Trừ 10 điểm GPLX', verify: true },
   c_alc3:        { veh: 'car', group: 'alcohol', name: 'Nồng độ cồn vượt quá 0,4 mg/1 lít khí thở', fine: [30000000, 40000000], basis: 'Điều 6', extra: 'Tước quyền sử dụng GPLX từ 22 đến 24 tháng', verify: true },
+  c_emerlane:    { veh: 'car', group: 'visible', name: 'Điều khiển xe chạy ở làn dừng xe khẩn cấp hoặc phần lề đường của đường cao tốc', fine: [4000000, 6000000], basis: 'Điểm d khoản 5 Điều 6', extra: 'Trừ 02 điểm GPLX', verify: false },
+  c_estop:       { veh: 'car', group: 'visible', name: 'Dừng xe, đỗ xe trên đường cao tốc không đúng nơi quy định; không bật đèn khẩn cấp khi buộc phải dừng ở làn dừng xe khẩn cấp', fine: [12000000, 14000000], basis: 'Điểm c khoản 7 Điều 6', extra: 'Trừ 06 điểm GPLX (điểm c khoản 16 Điều 6)', verify: false },
+  c_minspeed:    { veh: 'car', group: 'speed',   name: 'Điều khiển xe chạy dưới tốc độ tối thiểu trên đoạn đường bộ có quy định tốc độ tối thiểu cho phép', fine: [800000, 1000000], basis: 'Khoản 3 Điều 6', extra: '', verify: true },
+  c_noyield:     { veh: 'car', group: 'event',   seen: 'yieldSeen', name: 'Không giảm tốc độ và nhường đường cho xe đi đến từ bên trái tại nơi đường giao nhau có báo hiệu đi theo vòng xuyến', fine: [4000000, 6000000], basis: 'Điểm o khoản 5 Điều 6', extra: 'Trừ 02 điểm GPLX', verify: true },
+  c_rail:        { veh: 'car', group: 'event',   seen: 'railSeen', name: 'Vượt qua đường ngang (giao cắt đường sắt) khi đèn đỏ đã bật sáng, chắn đang dịch chuyển', fine: [18000000, 20000000], basis: 'Khoản 9 Điều 13 Nghị định 81/2026/NĐ-CP', extra: 'Tước quyền sử dụng GPLX từ 01 đến 03 tháng', verify: true },
   c_nolicense:   { veh: 'car', group: 'docs',    name: 'Không có giấy phép lái xe', fine: [18000000, 20000000], basis: 'Điều 18', extra: '', verify: true },
   c_nocarry_lic: { veh: 'car', group: 'docs',    name: 'Không mang theo giấy phép lái xe', fine: [300000, 400000], basis: 'Điều 18', extra: '', verify: true },
   c_nocarry_reg: { veh: 'car', group: 'docs',    name: 'Không mang theo chứng nhận đăng ký xe', fine: [300000, 400000], basis: 'Điều 18', extra: '', verify: true },
@@ -58,6 +67,15 @@ DATA.VIOLATIONS = {
   c_load4:       { veh: 'car', group: 'load',    name: 'Chở hàng vượt khối lượng hàng chuyên chở cho phép trên 100% đến 150%', fine: [7000000, 8000000], basis: 'Điều 21', extra: '', verify: true },
   c_height:      { veh: 'car', group: 'size',    name: 'Chở hàng vượt quá chiều cao xếp hàng cho phép (quá khổ)', fine: [2000000, 3000000], basis: 'Điều 21', extra: 'Trừ 02 điểm GPLX', verify: true },
   c_bus_over:    { veh: 'car', group: 'bus',     name: 'Chở quá số người được phép chở (xe chở hành khách, trừ xe buýt), tuyến dưới 300 km', fine: [400000, 600000], perPerson: true, basis: 'Điều 20', extra: 'Tính trên mỗi người vượt quá; tổng mức phạt không quá 75.000.000 đ', verify: true }
+};
+
+/* Lý do dừng trên làn dừng khẩn cấp (chỉ "sự cố" kèm bật đèn khẩn cấp là đúng quy định) */
+DATA.ESTOP = {
+  breakdown: { label: 'xe gặp sự cố kỹ thuật', say: ['Xe em bị nổ lốp sau anh ạ, em đang chờ cứu hộ.', 'Xe tự nhiên báo quá nhiệt, chết máy anh ơi.', 'Xe em bị hỏng hộp số, không chạy được nữa.'], check: 'phương tiện có hư hỏng thật' },
+  rest: { label: 'dừng nghỉ do buồn ngủ', say: ['Em buồn ngủ quá nên tấp vào nghỉ một lát.', 'Lái lâu mỏi quá anh, em dừng nghỉ chút thôi.'], check: 'phương tiện không hư hỏng' },
+  toilet: { label: 'dừng để đi vệ sinh', say: ['Con em đòi đi vệ sinh gấp quá anh ạ.', 'Em dừng đi vệ sinh tí rồi đi ngay.'], check: 'phương tiện không hư hỏng' },
+  photo: { label: 'dừng để chụp ảnh, ngắm cảnh', say: ['Cảnh đẹp quá, em dừng chụp mấy kiểu ảnh thôi.', 'Em dừng quay video gửi gia đình tí.'], check: 'phương tiện không hư hỏng' },
+  phone: { label: 'dừng để nghe điện thoại', say: ['Sếp gọi gấp, em dừng nghe máy chút.', 'Em dừng xem bản đồ trên điện thoại anh ạ.'], check: 'phương tiện không hư hỏng' }
 };
 
 /* Tỷ lệ chở vượt khối lượng cho phép (%) -> mức (từ 10% trở xuống: chưa xử phạt) */
@@ -158,25 +176,87 @@ DATA.SHIFTS = [
     p: { helmet: 0.18, passenger: 0.4, passHelmet: 0.35, carry2: 0.12, phone: 0.04, runRed: 0.08, wrongway: 0, speed: 0, alcohol: 0.22, noLic: 0.08, noCarryLic: 0.06, noCarryReg: 0.05, noIns: 0.1, vneid: 0.3 },
     react: { coop: 4, beg: 3, connect: 2, argue: 2, bribe: 1 }, flee: 0.06, accident: false,
     stars: [160, 340, 520]
+  },
+  {
+    id: 8, cpWait: 9, unlockAfter: 4, noMoto: true, name: 'Ca 8 · Cao tốc cuối tuần', short: 'Cao tốc cuối tuần',
+    desc: 'Đường cao tốc ngày cuối tuần, có máy đo tốc độ. Tốc độ tối đa 100 km/h, tối thiểu 60 km/h. Chú ý: xe chạy hoặc dừng đỗ trên làn dừng khẩn cấp, xe chạy dưới tốc độ tối thiểu, xe máy đi nhầm vào cao tốc. Xe gặp sự cố, có bật đèn khẩn cấp thì cần hỗ trợ, không xử phạt.',
+    map: 'expressway', time: '09:30', light: 'day', weather: 'clear', duration: 240,
+    density: 1.0, mix: { moto: 0.05, car: 0.6, truck: 0.2, bus: 0.15 }, radar: true, checkpoint: false,
+    p: { helmet: 0.1, passenger: 0.3, passHelmet: 0.3, carry2: 0.05, phone: 0.06, runRed: 0, wrongway: 0, speed: 0.25, alcohol: 0.05, noLic: 0.04, noCarryLic: 0.05, noCarryReg: 0.05, noIns: 0.08, vneid: 0.4, overload: 0.2, oversize: 0.1, busOver: 0.3, shoulder: 0.5, estop: 0.6, slow: 0.12 },
+    react: { coop: 5, beg: 2, argue: 2, film: 1, bribe: 1 }, flee: 0.03, accident: false,
+    stars: [140, 300, 480]
+  },
+  {
+    id: 9, cpWait: 10, unlockAfter: 2, name: 'Ca 9 · Khu đô thị mới', short: 'Khu đô thị mới',
+    desc: 'Khu đô thị mới có vòng xuyến và đường ngang giao cắt đường sắt. Vào vòng xuyến phải giảm tốc độ, nhường đường cho xe đi đến từ bên trái (xe đang đi trong vòng xuyến). Đèn đỏ đường ngang bật sáng, chuông kêu, chắn đang hạ: mọi phương tiện phải dừng lại.',
+    map: 'newtown', time: '08:00', light: 'day', weather: 'clear', duration: 240,
+    density: 1.0, mix: { moto: 0.72, car: 0.24, truck: 0.04 }, radar: false, checkpoint: false,
+    p: { helmet: 0.1, passenger: 0.35, passHelmet: 0.3, carry2: 0.06, phone: 0.06, runRed: 0, wrongway: 0, speed: 0, alcohol: 0.03, noLic: 0.04, noCarryLic: 0.06, noCarryReg: 0.05, noIns: 0.08, vneid: 0.4, noYield: 0.35, railRun: 0.3 },
+    react: { coop: 5, beg: 3, argue: 2, film: 1 }, flee: 0.03, accident: false,
+    stars: [130, 290, 460]
+  },
+  {
+    id: 10, cpWait: 9, unlockAfter: 8, noMoto: true, mods: ['fog', 'nohint'], name: 'Ca 10 · Cao tốc sương mù', short: 'Cao tốc sương mù',
+    desc: 'Sáng sớm, sương mù dày trên cao tốc, tầm nhìn rất hạn chế. Xe dừng trên làn khẩn cấp lúc này càng nguy hiểm.',
+    map: 'expressway', time: '05:45', light: 'day', weather: 'clear', duration: 240,
+    density: 0.85, mix: { moto: 0.05, car: 0.58, truck: 0.24, bus: 0.13 }, radar: true, checkpoint: false,
+    p: { helmet: 0.1, passenger: 0.3, passHelmet: 0.3, carry2: 0.05, phone: 0.08, runRed: 0, wrongway: 0, speed: 0.22, alcohol: 0.08, noLic: 0.04, noCarryLic: 0.05, noCarryReg: 0.05, noIns: 0.08, vneid: 0.4, overload: 0.25, oversize: 0.12, busOver: 0.35, shoulder: 0.45, estop: 0.7, slow: 0 },
+    react: { coop: 4, beg: 2, argue: 2, film: 1, connect: 1, bribe: 1 }, flee: 0.04, accident: false,
+    stars: [150, 320, 500]
+  },
+  {
+    id: 11, cpWait: 8, unlockAfter: 9, mods: ['jam', 'strict'], name: 'Ca 11 · Tan tầm khu đô thị', short: 'Tan tầm khu đô thị',
+    desc: 'Chiều tối giờ tan tầm, vòng xuyến và đường ngang ùn ứ. Nhiều người sốt ruột chen vào vòng xuyến, cố vượt đường ngang khi tàu sắp đến.',
+    map: 'newtown', time: '17:30', light: 'dusk', weather: 'clear', duration: 240,
+    density: 1.1, mix: { moto: 0.74, car: 0.22, truck: 0.04 }, radar: false, checkpoint: false,
+    p: { helmet: 0.1, passenger: 0.35, passHelmet: 0.3, carry2: 0.07, phone: 0.1, runRed: 0, wrongway: 0, speed: 0, alcohol: 0.05, noLic: 0.05, noCarryLic: 0.06, noCarryReg: 0.05, noIns: 0.08, vneid: 0.4, noYield: 0.45, railRun: 0.35 },
+    react: { coop: 4, beg: 3, argue: 2, film: 1, connect: 1, bribe: 1 }, flee: 0.04, accident: false,
+    stars: [150, 330, 520]
+  },
+  {
+    id: 12, cpWait: 8, unlockAfter: 5, mods: ['nohint', 'strict'], name: 'Ca 12 · Đêm mưa thử thách', short: 'Đêm mưa thử thách',
+    desc: 'Đêm mưa trên phố, đủ mọi loại vi phạm. Không có gợi ý, kỷ luật nghiêm: phải tự quan sát và kết luận chính xác.',
+    map: 'city', time: '22:30', light: 'night', weather: 'rain', duration: 240,
+    density: 0.95, mix: { moto: 0.7, car: 0.26, truck: 0.04 }, radar: true, checkpoint: false,
+    p: { helmet: 0.1, passenger: 0.3, passHelmet: 0.28, carry2: 0.06, phone: 0.06, runRed: 0.1, wrongway: 0.25, speed: 0.12, alcohol: 0.14, noLic: 0.05, noCarryLic: 0.06, noCarryReg: 0.05, noIns: 0.08, vneid: 0.4 },
+    react: { coop: 4, beg: 2, argue: 2, film: 1, connect: 1, bribe: 1 }, flee: 0.05, accident: true,
+    stars: [150, 320, 500]
   }
 ];
 
+/* Điều kiện của ca khó (có thể kết hợp nhiều điều kiện) */
+DATA.MODS = {
+  fog: { icon: '🌫', name: 'Sương mù', desc: 'Tầm nhìn hạn chế, dấu ! chỉ hiện khi phương tiện ở rất gần.' },
+  jam: { icon: '🚦', name: 'Ùn tắc', desc: 'Mật độ xe rất cao, xe di chuyển chậm, dễ chen lấn.' },
+  strict: { icon: '⚖', name: 'Kỷ luật nghiêm', desc: 'Sai sót (kết luận sai, bỏ sót, để lọt vi phạm) quá 3 lần: bị đình chỉ ca trực.', max: 3 },
+  nohint: { icon: '🙈', name: 'Không gợi ý', desc: 'Thẻ quan sát không liệt kê dấu hiệu vi phạm, không có dấu ! trên xe.' }
+};
+DATA.hasMod = (sh, k) => !!(sh && sh.mods && sh.mods.indexOf(k) >= 0);
+
 /* Chế độ tuần tra tự do: sinh ngẫu nhiên từ seed */
 DATA.makeFreeShift = function (rand, daily) {
-  const maps = ['city', 'highway', 'rural', 'industrial'];
+  const maps = ['city', 'highway', 'rural', 'industrial', 'expressway', 'newtown'];
   const lights = ['day', 'dusk', 'night'];
   const map = maps[Math.floor(rand() * maps.length)];
   const light = lights[Math.floor(rand() * lights.length)];
   const rain = rand() < 0.25;
   const times = { day: '09:00', dusk: '17:30', night: '21:30' };
+  const xw = map === 'expressway', nt = map === 'newtown';
+  /* thử thách hôm nay: thêm 1 điều kiện khó ngẫu nhiên */
+  const mods = daily ? [['fog', 'jam', 'strict', 'nohint'][Math.floor(rand() * 4)]] : [];
+  if (mods[0] === 'fog' && rain) mods[0] = 'strict';
   return {
+    mods: mods, noMoto: xw,
     id: daily ? 'daily' : 'free', cpWait: 10,
     name: daily ? 'Thử thách hôm nay' : 'Tuần tra tự do',
     short: daily ? 'Thử thách hôm nay' : 'Tuần tra tự do',
     desc: 'Tình huống sinh ngẫu nhiên. Địa bàn: ' + MAP.NAMES[map] + '.',
     map: map, time: times[light], light: light, weather: rain ? 'rain' : 'clear', duration: 240,
-    density: 0.9 + rand() * 0.4, mix: map === 'industrial' ? { moto: 0.68, car: 0.12, truck: 0.17, bus: 0.03 } : { moto: 0.68, car: 0.27, truck: 0.05 }, radar: map === 'highway' || rand() < 0.5, checkpoint: false,
-    p: { helmet: 0.1, passenger: 0.33, passHelmet: 0.25, carry2: 0.06, phone: 0.06, runRed: map === 'highway' ? 0 : 0.08, wrongway: map === 'city' ? 0.25 : 0, overload: 0.3, oversize: 0.15, busOver: 0.4, speed: 0.15, alcohol: light === 'night' ? 0.15 : 0.05, noLic: 0.05, noCarryLic: 0.06, noCarryReg: 0.05, noIns: 0.08, vneid: 0.4 },
+    density: 0.9 + rand() * 0.4,
+    mix: map === 'industrial' ? { moto: 0.68, car: 0.12, truck: 0.17, bus: 0.03 } : xw ? { moto: 0.05, car: 0.6, truck: 0.2, bus: 0.15 } : { moto: 0.68, car: 0.27, truck: 0.05 },
+    radar: map === 'highway' || xw || (!nt && rand() < 0.5), checkpoint: false,
+    p: { helmet: 0.1, passenger: 0.33, passHelmet: 0.25, carry2: 0.06, phone: 0.06, runRed: map === 'highway' || xw || nt ? 0 : 0.08, wrongway: map === 'city' ? 0.25 : 0, overload: 0.3, oversize: 0.15, busOver: 0.4, speed: 0.15, alcohol: light === 'night' ? 0.15 : 0.05, noLic: 0.05, noCarryLic: 0.06, noCarryReg: 0.05, noIns: 0.08, vneid: 0.4,
+      shoulder: xw ? 0.5 : 0, estop: xw ? 0.6 : 0, slow: xw && !rain ? 0.1 : 0, noYield: nt ? 0.35 : 0, railRun: nt ? 0.3 : 0 },
     react: { coop: 4, beg: 2, argue: 2, film: 1, connect: 1, bribe: 1 }, flee: 0.05, accident: map === 'city' && rand() < 0.5,
     stars: [150, 320, 500]
   };
@@ -224,10 +304,10 @@ DATA.MODES = {
 /* Hồ sơ chuyên đề cho tuần tra ô tô (ghép với giờ, thời tiết của ca) */
 DATA.carPatrolShift = function (sh) {
   return Object.assign({}, sh, {
-    map: sh.map === 'industrial' ? 'industrial' : 'highway', scope: 'car', radar: true, checkpoint: false,
+    map: ['industrial', 'expressway', 'newtown'].indexOf(sh.map) >= 0 ? sh.map : 'highway', scope: 'car', radar: sh.map !== 'newtown', checkpoint: false,
     short: sh.short + ' · Ô tô',
     density: Math.max(0.9, sh.density * 0.9),
-    mix: { moto: 0.3, car: 0.33, truck: 0.22, bus: 0.15 },
+    mix: sh.map === 'expressway' ? { moto: 0.05, car: 0.5, truck: 0.27, bus: 0.18 } : { moto: 0.3, car: 0.33, truck: 0.22, bus: 0.15 },
     p: Object.assign({}, sh.p, { alcohol: Math.max(0.15, sh.p.alcohol), speed: 0.15, overload: 0.4, oversize: 0.2, busOver: 0.45 }),
     accident: sh.accident
   });
@@ -339,7 +419,11 @@ DATA.TIPS = [
   'Không mang theo GPLX khác với không có GPLX. Hãy tra cứu cơ sở dữ liệu để phân biệt.',
   'Luật TTATGTĐB 2024 nghiêm cấm điều khiển phương tiện mà trong máu hoặc hơi thở có nồng độ cồn.',
   'Tại chốt kiểm soát theo kế hoạch, tổ công tác được dừng phương tiện để kiểm tra.',
-  'Tổng mức phạt khi vi phạm nhiều lỗi được cộng theo từng hành vi.'
+  'Tổng mức phạt khi vi phạm nhiều lỗi được cộng theo từng hành vi.',
+  'Trên cao tốc, chỉ được dừng, đỗ ở làn dừng khẩn cấp khi gặp sự cố kỹ thuật hoặc bất khả kháng, và phải bật đèn khẩn cấp.',
+  'Xe mô tô, xe gắn máy không được đi vào đường cao tốc.',
+  'Tại nơi giao nhau có báo hiệu đi theo vòng xuyến: giảm tốc độ, nhường đường cho xe đi đến từ bên trái.',
+  'Đèn đỏ đường ngang bật sáng, chuông kêu, chắn đang hạ: phải dừng lại trước vạch dừng, không cố vượt qua đường sắt.'
 ];
 
 /* ------------------------------ TÌNH HUỐNG ĐẶC BIỆT ------------------------------ */
@@ -468,5 +552,10 @@ DATA.SHIFT_EVENTS = {
   5: { w: { accident: 2, snatch: 1, wanted: 1, help: 1 }, n: 3 },
   6: { w: { accident: 2, help: 1, snatch: 1, wanted: 1 }, n: 3 },
   7: { w: { help: 2, race: 2, wanted: 1, accident: 1 }, n: 3 },
+  8: { w: { accident: 2, wanted: 1, race: 1, help: 1 }, n: 2 },
+  9: { w: { help: 2, snatch: 1, accident: 1, wanted: 1 }, n: 2 },
+  10: { w: { accident: 3, wanted: 1, help: 1 }, n: 2 },
+  11: { w: { accident: 1, snatch: 1, race: 1, help: 1, wanted: 1 }, n: 3 },
+  12: { w: { accident: 2, snatch: 1, wanted: 1, race: 1 }, n: 3 },
   free: { w: { accident: 1, snatch: 1, wanted: 1, race: 1, help: 1 }, n: 3 }
 };

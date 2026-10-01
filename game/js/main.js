@@ -171,6 +171,7 @@ const G = {
     UI.$('toast').innerHTML = '';
     mode = mode || SAVE.data.mode || 'cp';
     if (!DATA.MODES[mode]) mode = mode === 'patrol' ? 'moto' : 'cp';
+    if (shift.noMoto && mode === 'moto') mode = 'car';
     G.modeUsed = mode;
     G.baseShift = shift;
     if (mode === 'car') shift = DATA.carPatrolShift(shift);
@@ -184,6 +185,7 @@ const G = {
       /* chốt kiểm soát: làn ngoài cùng chiều Đông dành cho xe vào chốt */
       G.cpLane = m.lanes[m.cpLane];
       G.cpLane.noSpawn = true;
+      for (const L of m.lanes) if (L.emer && L.dir === G.cpLane.dir && L.axis === G.cpLane.axis) L.noSpawn = true;
       G.cpHold = m.cpSpot.x + 14;
       /* tăng tỉ lệ vi phạm vì xe đến lần lượt */
       const p = Object.assign({}, shift.p);
@@ -217,9 +219,11 @@ const G = {
       UI.dialogSeq(DATA.CAPTAIN, tlines, () => { SAVE.data[tkey] = true; SAVE.store(); G.resume(); });
     } else {
       G.pause('intro');
-      const intro = mode === 'car' ? DATA.TUTORIAL_CAR[0] + ' Thời gian: ' + shift.time + (shift.weather === 'rain' ? ', trời mưa.' : '.')
+      const modsTxt = (shift.mods || []).map(k => DATA.MODS[k].icon + ' ' + DATA.MODS[k].name.toUpperCase() + ': ' + DATA.MODS[k].desc).join(' ');
+      const intro0 = shift.map === 'expressway' || shift.map === 'newtown' ? shift.desc + (shift.noMoto && G.modeUsed === 'car' ? ' Xe mô tô không được đi vào cao tốc nên tổ công tác tuần tra bằng ô tô.' : '') : null;
+      const intro = (modsTxt ? '⚠ CA KHÓ – ' + modsTxt + ' ' : '') + (intro0 ? intro0 : mode === 'car' ? DATA.TUTORIAL_CAR[0] + ' Thời gian: ' + shift.time + (shift.weather === 'rain' ? ', trời mưa.' : '.')
         : mode === 'moto' ? 'Tuần tra lưu động bằng mô tô. ' + shift.desc + ' Tập trung xử lý vi phạm của xe mô tô, xe máy.'
-        : shift.desc + (shift.checkpoint ? ' Đây là chốt kiểm soát theo kế hoạch: đồng chí được dừng mọi phương tiện.' : '');
+        : shift.desc + (shift.checkpoint ? ' Đây là chốt kiểm soát theo kế hoạch: đồng chí được dừng mọi phương tiện.' : ''));
       UI.dialogSeq(DATA.CAPTAIN, [intro], () => G.resume());
     }
   },
@@ -228,16 +232,19 @@ const G = {
   resume() { G.mode = 'play'; G.pauseWhy = null; G.act = false; G.last = performance.now(); },
 
   addScore(n) { G.score += n; },
+  /* ca "kỷ luật nghiêm": đếm sai sót */
+  errors() { return G.stats ? G.stats.wrong + G.stats.missed + G.stats.escaped : 0; },
+  errMax() { return DATA.hasMod(G.shift, 'strict') ? DATA.MODS.strict.max : 0; },
 
   endShift(reason) {
     if (G.mode === 'summary') return;
-    if (reason !== 'bribe') MISSIONS.check(true);
+    if (reason !== 'bribe' && reason !== 'strict') MISSIONS.check(true);
     G.mode = 'summary';
     EVENTS.clear();
     UI.$('toast').innerHTML = '';
     UI.closeModal();
     UI.hud(false);
-    const sh = G.shift, failed = reason === 'bribe';
+    const sh = G.shift, failed = reason === 'bribe' || reason === 'strict';
     const score = G.score;
     let stars = 0;
     if (!failed) for (const t of sh.stars) if (score >= t) stars++;
@@ -258,11 +265,11 @@ const G = {
     const promoted = SAVE.rank().cur.name !== before;
     if (failed) AUDIO.bad(); else if (stars > 0) AUDIO.fanfare();
     let nextShift = null;
-    if (typeof sh.id === 'number') {
+    if (typeof sh.id === 'number' && !failed) {
       const n = DATA.SHIFTS.find(x => x.id === sh.id + 1);
       if (n && SAVE.unlocked(n.id)) nextShift = n;
     }
-    UI.summary({ missions: MISSIONS.list, mode: G.modeUsed, shift: G.baseShift || sh, score: score, stars: stars, stats: G.stats, log: G.log, failed: failed, newBest: newBest, promoted: promoted, nextShift: nextShift });
+    UI.summary({ failReason: reason, missions: MISSIONS.list, mode: G.modeUsed, shift: G.baseShift || sh, score: score, stars: stars, stats: G.stats, log: G.log, failed: failed, newBest: newBest, promoted: promoted, nextShift: nextShift });
   },
 
   /* ---------------- CHỐT KIỂM SOÁT ---------------- */
@@ -287,6 +294,9 @@ const G = {
     v.holdAt = G.cpHold;
     v.cp = true;
     if (v.runRed) { v.ranRed = true; v.redWitnessed = true; }
+    /* khu đô thị mới: tin báo từ camera giám sát vòng xuyến, đường ngang */
+    if (v.noYield && U.chance(0.35)) { v.cutIn = true; v.yieldSeen = true; v.report = true; }
+    if (v.railRun && U.chance(0.35)) { v.railX = true; v.railSeen = true; v.report = true; }
     if (MAP.cur.oneway && v.veh === 'moto' && U.chance((sh.p.wrongway || 0) * 0.5)) v.wrongReport = true;
     TRAFFIC.list.push(v);
     G.cpCur = v;
@@ -351,6 +361,7 @@ const G = {
       return;
     }
     if (G.mode !== 'play') return;
+    if (G.errMax() && G.errors() > G.errMax()) { G.endShift('strict'); return; }
     G.timeLeft -= dt;
     if (G.timeLeft <= 0) { G.timeLeft = 0; G.endShift('time'); return; }
     TRAFFIC.updateLights(m, dt);
@@ -396,7 +407,8 @@ const G = {
     G.target = best;
     G.targetT = (G.targetT || 0) + dt;
     if (best && G.shift.radar && G.targetT > 0.35) {
-      const k = Math.round(best.speed / KPX);
+      /* đường có tốc độ tối thiểu: máy đo ghi tốc độ hành trình ổn định (tránh đo lúc xe phải giảm tốc vì xe phía trước) */
+      const k = best.minKmh ? Math.round(best.cruiseKmh) : Math.round(best.speed / KPX);
       if (best.measured == null || k > best.measured) best.measured = k;
     }
     /* xe đã tấp vào lề -> bắt đầu kiểm tra */
@@ -450,6 +462,7 @@ const G = {
     LIFE.drawWater(g, cam);
     LIFE.drawPeds(g, cam);
     TRAFFIC.draw(g, cam);
+    TRAFFIC.drawTrains(g, m, cam);
     if (G.mode !== 'menu' && G.cp && m.cpSpot) G.drawCones(g, m, cam);
     if (G.mode !== 'menu') PLAYER.draw(g, cam);
     MAP.drawLights(g, m, cam);
@@ -457,10 +470,10 @@ const G = {
     g.drawImage(m.fg, cam.x * RS, cam.y * RS, sw * RS, sh * RS, 0, 0, sw, sh);
     LIFE.drawParts(g, cam);
     if (G.mode !== 'menu') EVENTS.draw(g, cam);
-    if (G.mode === 'play' && !G.cp && Math.floor(performance.now() / 300) % 2 === 0) {
+    if (G.mode === 'play' && !G.cp && !DATA.hasMod(G.shift, 'nohint') && Math.floor(performance.now() / 300) % 2 === 0) {
       for (const v of TRAFFIC.list) {
         if (v.state !== 'drive' || v.stopped || v.special) continue;
-        if (Math.hypot(v.x - PLAYER.x, v.y - PLAYER.y) > 110) continue;
+        if (Math.hypot(v.x - PLAYER.x, v.y - PLAYER.y) > G.markRange()) continue;
         if (!TRAFFIC.signs(v).length) continue;
         const x = Math.round(v.x - cam.x), y = Math.round(v.y - cam.y) - 15;
         g.fillStyle = '#000'; g.fillRect(x - 3, y - 1, 7, 8);
@@ -481,6 +494,7 @@ const G = {
       g.fillRect(x0 + s - c, y0 + s - 1, c, 1); g.fillRect(x0 + s - 1, y0 + s - c, 1, c);
     }
     G.lighting();
+    if (DATA.hasMod(G.shift, 'fog')) G.fog2d();
     if (G.shift && G.shift.weather === 'rain') G.rain();
     LIFE.drawBirds(g);
     if (G.mode !== 'menu') EVENTS.drawArrow(g, cam);
@@ -511,8 +525,11 @@ const G = {
       if ((v.state === 'pullover' || v.state === 'stopped') && Math.floor(v.t * 3) % 2 === 0) {
         g.fillStyle = '#ffb703'; g.beginPath(); g.arc(p.x, p.y - 4 * u, 4 * u, 0, Math.PI * 2); g.fill();
       }
-      if (G.mode === 'play' && !G.cp && blink && v.state === 'drive' && !v.stopped && !v.special &&
-          Math.hypot(v.x - PLAYER.x, v.y - PLAYER.y) <= 110 && TRAFFIC.signs(v).length) mark(p.x, p.y, '#ffd23f', '#c0392b', '!');
+      if (G.mode === 'play' && !G.cp && blink && v.state === 'drive' && !v.stopped && !v.special && !DATA.hasMod(G.shift, 'nohint') &&
+          Math.hypot(v.x - PLAYER.x, v.y - PLAYER.y) <= G.markRange() && TRAFFIC.signs(v).length) mark(p.x, p.y, '#ffd23f', '#c0392b', '!');
+      if (v.estop && v.estop.hazard && (v.parked || v.state === 'stopped') && Math.floor(t * 2.5) % 2 === 0) {
+        g.fillStyle = '#ffb000'; g.beginPath(); g.arc(p.x, p.y + 6 * u, 3.5 * u, 0, Math.PI * 2); g.fill();
+      }
     }
     /* khung khóa mục tiêu: bao quanh hình chiếu của khối hộp xe */
     const tv = G.mode === 'play' ? G.target : null;
@@ -678,6 +695,16 @@ const G = {
       G.glow(g, PLAYER.x - cam.x, PLAYER.y - cam.y, 26, on ? 'rgba(255,40,40,0.35)' : 'rgba(40,110,255,0.35)');
     }
     g.globalCompositeOperation = 'source-over';
+  },
+
+  markRange() { return DATA.hasMod(G.shift, 'fog') ? 55 : 110; },
+  /* sương mù (đồ họa pixel): màn trắng đục, chỉ quang quanh tổ công tác */
+  fog2d() {
+    const g = G.g, cam = G.cam;
+    const cx = (G.mode === 'menu' ? cam.w / 2 : PLAYER.x - cam.x), cy = (G.mode === 'menu' ? cam.h / 2 : PLAYER.y - cam.y);
+    const gr = g.createRadialGradient(cx, cy, 40, cx, cy, 150);
+    gr.addColorStop(0, 'rgba(215,220,226,0.15)'); gr.addColorStop(1, 'rgba(215,220,226,0.85)');
+    g.fillStyle = gr; g.fillRect(0, 0, cam.w, cam.h);
   },
 
   rain() {

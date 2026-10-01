@@ -260,3 +260,9 @@ body.has-touch #evBanner { top: 48px; }
 #zoomBox span { color: var(--gold); font: 700 12px var(--font); min-width: 22px; text-align: center; }
 body.has-touch #zoomBox { bottom: 156px; left: 22px; right: auto; }
 body.has-touch #minimap { top: 64px; }
+
+/* điều kiện ca khó */
+.s-mods { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 2px; }
+.s-mods span { font: 700 11px var(--font); color: #ffd23f; background: rgba(255,210,63,.12); box-shadow: 0 0 0 1px rgba(255,210,63,.45); padding: 1px 6px; }
+#hudL em { font-style: normal; color: var(--gold); }
+#hudL em.bad { color: #ff6b5e; }

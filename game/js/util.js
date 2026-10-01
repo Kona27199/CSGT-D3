@@ -65,6 +65,8 @@ const SAVE = {
   },
   unlocked(id) {
     if (id === 1) return true;
-    return (SAVE.data.stars[id - 1] || 0) >= 1;
+    const sh = DATA.SHIFTS.find(x => x.id === id);
+    const need = sh && sh.unlockAfter ? sh.unlockAfter : id - 1;
+    return (SAVE.data.stars[need] || 0) >= 1;
   }
 };

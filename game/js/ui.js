@@ -158,8 +158,10 @@ const UI = {
       const un = SAVE.unlocked(sh.id), st = SAVE.data.stars[sh.id] || 0, best = SAVE.data.best[sh.id];
       html += '<button class="shift ' + (un ? '' : 'locked') + '" data-id="' + sh.id + '"' + (un ? '' : ' disabled') + '>' +
         '<div class="s-top"><b>' + U.esc(sh.name) + '</b><span class="stars">' + '★'.repeat(st) + '<i>' + '★'.repeat(3 - st) + '</i></span></div>' +
-        '<div class="s-desc">' + (un ? U.esc(sh.desc) : '🔒 Đạt ít nhất 1 sao ở ca trước để mở khóa.') + '</div>' +
-        '<div class="s-meta">⏰ ' + sh.time + ' · ' + Math.round(sh.duration / 60 * 10) / 10 + ' phút' + (best != null ? ' · Kỷ lục: ' + best : '') + '</div>' +
+        '<div class="s-desc">' + (un ? U.esc(sh.desc) : '🔒 Đạt ít nhất 1 sao ở ' + (sh.unlockAfter ? 'Ca ' + sh.unlockAfter : 'ca trước') + ' để mở khóa.') + '</div>' +
+        (sh.mods && sh.mods.length ? '<div class="s-mods">' + sh.mods.map(k => '<span title="' + U.esc(DATA.MODS[k].desc) + '">' + DATA.MODS[k].icon + ' ' + DATA.MODS[k].name + '</span>').join('') + '</div>' : '') +
+        (sh.noMoto ? '<div class="s-mods"><span>🚓 Chỉ chốt hoặc ô tô</span></div>' : '') +
+        '<div class="s-meta">🗺 ' + MAP.NAMES[sh.map] + ' · ⏰ ' + sh.time + ' · ' + Math.round(sh.duration / 60 * 10) / 10 + ' phút' + (best != null ? ' · Kỷ lục: ' + best : '') + '</div>' +
         '</button>';
     }
     html += '</div><div class="row-end"><button class="btn" data-a="back">← Quay lại</button></div></div>';
@@ -222,7 +224,9 @@ const UI = {
       '<li><b>🏍 Mô tô:</b> tuần tra trên phố, xử lý vi phạm của xe mô tô, xe máy (mũ bảo hiểm, chở quá số người, điện thoại, vượt đèn đỏ, đi ngược chiều, tốc độ, nồng độ cồn, giấy tờ).</li>' +
       '<li><b>🚓 Ô tô:</b> tuần tra trên quốc lộ theo chuyên đề: xe tải quá tải (cân tải trọng), quá khổ (đo chiều cao xếp hàng), xe khách chở quá số người (kiểm đếm), nồng độ cồn người điều khiển ô tô.</li>' +
       '<li>Điều khiển xe tuần tra bằng phím mũi tên / W A S D hoặc cần điều khiển. Xe có dấu hiệu vi phạm ở gần hiện biểu tượng <b style="color:#ffd23f">!</b>. Bám theo phương tiện, khung vàng khóa mục tiêu. Thẻ quan sát (góc phải) phóng to phương tiện: mũ bảo hiểm, số người, điện thoại (chấm xanh sáng), tốc độ (nếu có máy đo).</li>' +
-      '<li>Dấu <b style="color:#ff3b30">!</b> nhấp nháy trên xe: tổ công tác vừa ghi nhận xe vượt đèn đỏ.</li>' +
+      '<li>Dấu <b style="color:#ff3b30">!</b> nhấp nháy trên xe: tổ công tác vừa ghi nhận xe vượt đèn đỏ, không nhường đường ở vòng xuyến hoặc vượt đường ngang khi đèn đỏ đã bật.</li>' +
+      '<li><b>Cao tốc:</b> xe dừng ở làn khẩn cấp nhấp nháy đèn vàng là đã bật đèn khẩn cấp. Hỏi lý do: gặp sự cố + bật đèn khẩn cấp → hỗ trợ, không xử phạt; dừng nghỉ, đi vệ sinh, chụp ảnh... hoặc không bật đèn → vi phạm.</li>' +
+      '<li><b>Ca khó:</b> 🌫 sương mù · 🚦 ùn tắc · ⚖ kỷ luật nghiêm (sai sót quá 3 lần bị đình chỉ ca) · 🙈 không gợi ý.</li>' +
       '<li>Mỗi lần dừng xe có 3 bước: <b>Tiếp cận</b> → <b>Kiểm tra</b> (giấy tờ, tra cứu, đo nồng độ cồn) → <b>Kết luận theo bằng chứng</b>: mỗi bằng chứng chọn đúng lỗi và mức phạt, hoặc "Không vi phạm".</li>' +
       '<li>Mỗi ca, tình huống được sinh ngẫu nhiên: lỗi ẩn (không bằng lái, bảo hiểm hết hạn, nồng độ cồn…), thái độ người vi phạm khác nhau.</li></ul>' +
       '<h4>Tình huống đặc biệt</h4><ul>' +
@@ -245,7 +249,8 @@ const UI = {
     const rk = SAVE.rank();
     let html = '<div class="panel wide"><h2>' + (r.failed ? '⛔ Ca trực thất bại' : '📋 Tổng kết ca trực') + '</h2>' +
       '<p class="dim">' + U.esc(r.shift.name) + ' · ' + DATA.MODES[r.mode].name + '</p>';
-    if (r.failed) html += '<p class="fb bad">Nhận hối lộ là hành vi phạm tội và vi phạm nghiêm trọng điều lệnh CAND. Người chiến sĩ CSGT phải luôn liêm chính!</p>';
+    if (r.failed && r.failReason === 'strict') html += '<p class="fb bad">Ca "kỷ luật nghiêm": đồng chí đã sai sót quá ' + DATA.MODS.strict.max + ' lần (kết luận sai, bỏ sót lỗi hoặc để lọt vi phạm) nên bị đình chỉ ca trực. Hãy quan sát kỹ và đối chiếu bằng chứng trước khi kết luận!</p>';
+    else if (r.failed) html += '<p class="fb bad">Nhận hối lộ là hành vi phạm tội và vi phạm nghiêm trọng điều lệnh CAND. Người chiến sĩ CSGT phải luôn liêm chính!</p>';
     html += '<div class="stars big">' + '★'.repeat(r.stars) + '<i>' + '★'.repeat(3 - r.stars) + '</i></div>' +
       '<div class="score-big">' + r.score + ' điểm' + (r.newBest && r.score > 0 ? ' <span class="nb">KỶ LỤC MỚI!</span>' : '') + '</div>' +
       '<div class="stat-grid">' +
@@ -256,7 +261,7 @@ const UI = {
       '<div><b>' + st.escaped + '</b><span>Để lọt vi phạm</span></div>' +
       '<div><b>' + acc + '%</b><span>Độ chính xác</span></div>' +
       '<div><b>' + st.procOk + '/' + (st.procOk + st.procBad) + '</b><span>Ứng xử chuẩn mực</span></div>' +
-      '<div><b>' + (r.failed ? '✖' : st.bribeRefused > 0 ? '✔ ' + st.bribeRefused : '✔') + '</b><span>Liêm chính</span></div>' +
+      '<div><b>' + (r.failed && r.failReason !== 'strict' ? '✖' : st.bribeRefused > 0 ? '✔ ' + st.bribeRefused : '✔') + '</b><span>Liêm chính</span></div>' +
       '</div>';
     if (r.missions && r.missions.length) {
       html += '<div class="mis-sum"><b>🎯 Nhiệm vụ trong ca</b>' + r.missions.map(m => '<div class="' + (m.done ? 'ok' : 'dim') + '">' + (m.done ? '✔ ' : '✖ ') + U.esc(m.def.text) + (m.done ? ' (+' + m.def.reward + ')' : '') + '</div>').join('') + '</div>';
@@ -346,7 +351,9 @@ const UI = {
     const gm = hh * 60 + mm + Math.floor((sh.duration - G.timeLeft) * (240 / sh.duration));
     const clock = U.pad(Math.floor(gm / 60) % 24) + ':' + U.pad(gm % 60);
     const tl = Math.max(0, Math.ceil(G.timeLeft));
-    UI.set('hudL', '<b>' + U.esc(sh.short) + '</b><span>🕒 ' + clock + ' · còn ' + Math.floor(tl / 60) + ':' + U.pad(tl % 60) + '</span>');
+    const mods = (sh.mods || []).map(k => DATA.MODS[k].icon).join('');
+    const em = G.errMax();
+    UI.set('hudL', '<b>' + U.esc(sh.short) + (mods ? ' ' + mods : '') + '</b><span>🕒 ' + clock + ' · còn ' + Math.floor(tl / 60) + ':' + U.pad(tl % 60) + (em ? ' · <em class="' + (G.errors() >= em ? 'bad' : '') + '">⚖ sai sót ' + G.errors() + '/' + em + '</em>' : '') + '</span>');
     UI.set('hudR', '<b>' + G.score + '</b><span>điểm · ' + G.stats.stops + ' lượt</span>');
     const pct = Math.max(0, G.timeLeft / sh.duration * 100);
     UI.$('timebar').style.width = pct + '%';
@@ -368,11 +375,12 @@ const UI = {
     }
     let t = '<b>' + U.esc(v.plate) + '</b> · ' + (v.kind === 'moto' ? 'Xe máy' : v.kind === 'car' ? 'Ô tô' : v.kind === 'bus' ? 'Xe khách' : 'Xe tải');
     if (G.shift.radar) {
-      const k = Math.round(v.speed / KPX);
-      t += '<div class="radar ' + (k >= v.lane.limit + 5 ? 'bad' : '') + '">📡 ' + k + ' km/h <small>(tối đa ' + v.lane.limit + ')</small></div>';
+      const k = v.minKmh ? Math.round(v.cruiseKmh) : Math.round(v.speed / KPX);
+      t += '<div class="radar ' + (k >= v.lane.limit + 5 || (v.minKmh && k < v.minKmh) ? 'bad' : '') + '">📡 ' + k + ' km/h <small>(tối đa ' + v.lane.limit + (v.minKmh ? ', tối thiểu ' + v.minKmh : '') + ')</small></div>';
     }
     const sg = TRAFFIC.signs(v);
-    t += sg.length ? '<div class="signs"><b>Dấu hiệu:</b>' + sg.map(x => '<div class="bad">' + x + '</div>').join('') + '</div>' : '<div class="dim">Chưa thấy dấu hiệu vi phạm</div>';
+    if (DATA.hasMod(G.shift, 'nohint')) t += '<div class="dim">🙈 Ca không gợi ý: tự quan sát phương tiện</div>';
+    else t += sg.length ? '<div class="signs"><b>Dấu hiệu:</b>' + sg.map(x => '<div class="bad">' + x + '</div>').join('') + '</div>' : '<div class="dim">Chưa thấy dấu hiệu vi phạm</div>';
     UI.set('cardTxt', t);
   },
 
@@ -390,7 +398,10 @@ const UI = {
       g.drawImage(v.spr, 0, 0, cv.width, cv.height);
       let t = '<div><b class="plate">' + U.esc(v.plate) + '</b> ' + (v.kind === 'moto' ? 'Xe máy' : v.kind === 'car' ? 'Ô tô con' : 'Ô tô tải') + '</div>';
       if (v.pass) t += '<div>Trên xe: ' + (1 + v.pass) + ' người</div>';
-      if (v.measured != null) t += '<div class="radar ' + (v.measured >= v.lane.limit + 5 ? 'bad' : 'ok') + '">📡 ' + v.measured + ' km/h <small>(tối đa ' + v.lane.limit + ')</small></div>';
+      if (v.measured != null) t += '<div class="radar ' + (v.measured >= v.lane.limit + 5 || (v.minKmh && v.measured < v.minKmh) ? 'bad' : 'ok') + '">📡 ' + v.measured + ' km/h <small>(tối đa ' + v.lane.limit + (v.minKmh ? ', tối thiểu ' + v.minKmh : '') + ')</small></div>';
+      if (v.xway) t += '<div class="bad">🚫 Xe mô tô đang lưu thông trên đường cao tốc</div>';
+      if (v.yieldSeen) t += '<div class="bad">📻 Tin báo: xe vừa không nhường đường cho xe trong vòng xuyến</div>';
+      if (v.railSeen) t += '<div class="bad">📻 Tin báo: xe vừa vượt đường ngang khi đèn đỏ đã bật</div>';
       if (v.redWitnessed) t += '<div class="bad">📻 Tin báo: xe vừa vượt đèn đỏ ở ngã tư phía trước</div>';
       if (v.wrongReport) t += '<div class="bad">📻 Tin báo: xe vừa đi ngược chiều vào đường một chiều</div>';
       if (v.weave) t += '<div class="bad">〰 Xe chạy lạng lách, không vững tay lái</div>';
