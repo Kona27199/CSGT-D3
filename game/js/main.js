@@ -127,8 +127,14 @@ const G = {
   start(shift, seed, mode) {
     UI.hideScreen();
     UI.closeModal();
+    mode = mode || SAVE.data.mode || 'cp';
+    if (!DATA.MODES[mode]) mode = mode === 'patrol' ? 'moto' : 'cp';
+    G.modeUsed = mode;
+    G.baseShift = shift;
+    if (mode === 'car') shift = DATA.carPatrolShift(shift);
+    else if (mode === 'moto') shift = Object.assign({}, shift, { scope: 'moto', short: shift.short + ' · Mô tô' });
     G.shift = shift;
-    G.cp = (mode || SAVE.data.mode || 'cp') === 'cp';
+    G.cp = mode === 'cp';
     U.setSeed(seed >>> 0);
     const m = MAP.build(shift.map);
     TRAFFIC.reset();
@@ -146,7 +152,8 @@ const G = {
     }
     G.prewarm(20);
     for (const v of TRAFFIC.list) { v.ranRed = false; v.redWitnessed = false; }
-    PLAYER.reset(G.cp ? m.cpSpot : m.spawn);
+    const vehSpawn = m.kind === 'highway' ? { x: 40 * TILE, y: 16 * TILE + 8 } : { x: 12 * TILE, y: 20 * TILE + 8 };
+    PLAYER.reset(G.cp ? m.cpSpot : vehSpawn, G.cp ? null : mode);
     if (G.cp) PLAYER.face = 'left';
     G.cpCur = null; G.cpTimer = 0.6; G.pass = false;
     UI.$('touch').classList.toggle('cp', G.cp);
@@ -163,13 +170,17 @@ const G = {
     UI._cache = {};
     UI.hud(true);
     AUDIO.siren();
-    const tkey = G.cp ? 'tutorialDone' : 'tutorialDoneP';
+    const tkey = G.cp ? 'tutorialDone' : 'tut_' + mode;
+    const tlines = G.cp ? DATA.TUTORIAL_CP : (mode === 'car' ? DATA.TUTORIAL_CAR : DATA.TUTORIAL_MOTO).concat(DATA.TUTORIAL.slice(1));
     if (shift.tutorial && !SAVE.data[tkey]) {
       G.pause('tutorial');
-      UI.dialogSeq(DATA.CAPTAIN, G.cp ? DATA.TUTORIAL_CP : DATA.TUTORIAL, () => { SAVE.data[tkey] = true; SAVE.store(); G.resume(); });
+      UI.dialogSeq(DATA.CAPTAIN, tlines, () => { SAVE.data[tkey] = true; SAVE.store(); G.resume(); });
     } else {
       G.pause('intro');
-      UI.dialogSeq(DATA.CAPTAIN, [shift.desc + (shift.checkpoint ? ' Đây là chốt kiểm soát theo kế hoạch: đồng chí được dừng mọi phương tiện.' : '')], () => G.resume());
+      const intro = mode === 'car' ? DATA.TUTORIAL_CAR[0] + ' Thời gian: ' + shift.time + (shift.weather === 'rain' ? ', trời mưa.' : '.')
+        : mode === 'moto' ? 'Tuần tra lưu động bằng mô tô. ' + shift.desc + ' Tập trung xử lý vi phạm của xe mô tô, xe máy.'
+        : shift.desc + (shift.checkpoint ? ' Đây là chốt kiểm soát theo kế hoạch: đồng chí được dừng mọi phương tiện.' : '');
+      UI.dialogSeq(DATA.CAPTAIN, [intro], () => G.resume());
     }
   },
 
@@ -208,7 +219,7 @@ const G = {
       const n = DATA.SHIFTS.find(x => x.id === sh.id + 1);
       if (n && SAVE.unlocked(n.id)) nextShift = n;
     }
-    UI.summary({ mode: G.cp ? 'cp' : 'patrol', shift: sh, score: score, stars: stars, stats: G.stats, log: G.log, failed: failed, newBest: newBest, promoted: promoted, nextShift: nextShift });
+    UI.summary({ mode: G.modeUsed, shift: G.baseShift || sh, score: score, stars: stars, stats: G.stats, log: G.log, failed: failed, newBest: newBest, promoted: promoted, nextShift: nextShift });
   },
 
   /* ---------------- CHỐT KIỂM SOÁT ---------------- */

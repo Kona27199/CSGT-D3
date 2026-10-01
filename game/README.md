@@ -14,12 +14,15 @@ xác định đúng lỗi và mức phạt, ứng xử chuẩn mực và giữ l
 Game không tải bất kỳ tài nguyên nào từ Internet: đồ họa pixel và âm thanh 8-bit đều được tạo bằng code.
 Tiến trình (điểm kỷ lục, số sao, XP, cấp bậc) được lưu trong trình duyệt (localStorage).
 
-## 2. Hai chế độ chơi (chọn ở màn hình "Chọn ca tuần tra")
+## 2. Ba chế độ chơi (chọn ở màn hình "Chọn ca tuần tra")
 
 | Chế độ | Cách chơi |
 |---|---|
-| **Chốt kiểm soát** (mặc định, dễ) | Người chơi đứng tại chốt. Từng phương tiện vào chốt, dừng trước mặt và hiện **phóng to** ở bảng quan sát (mũ bảo hiểm, số người, điện thoại, tốc độ đo được, tin báo vượt đèn đỏ/đi ngược chiều). Bấm **DỪNG XE** hoặc **CHO QUA** trước khi hết giờ. Ca 1 có gợi ý dấu hiệu vi phạm. |
-| **Tuần tra cơ động (Khó)** | Tự di chuyển trên phố, tự phát hiện xe vi phạm giữa dòng xe. Hỗ trợ: xe có dấu hiệu vi phạm ở gần hiện biểu tượng **!** vàng; thẻ quan sát ghi rõ "Dấu hiệu". |
+| 🚧 **Chốt kiểm soát** (mặc định, dễ) | Đứng tại chốt. Từng phương tiện vào chốt, dừng trước mặt và hiện **phóng to** ở bảng quan sát. Bấm **DỪNG XE** hoặc **CHO QUA** trước khi hết giờ. Ca 1 có gợi ý. |
+| 🏍 **Tuần tra mô tô** | Lái mô tô tuần tra trên phố. Xử lý vi phạm của **xe mô tô, xe máy**: mũ bảo hiểm, chở quá số người, điện thoại, vượt đèn đỏ, đi ngược chiều, tốc độ, nồng độ cồn, giấy tờ. Ô tô trên đường nằm ngoài phạm vi. |
+| 🚓 **Tuần tra ô tô** | Lái ô tô tuần tra trên quốc lộ theo **chuyên đề**: xe tải **quá tải** (cân tải trọng), **quá khổ** (đo chiều cao xếp hàng), **xe khách chở quá số người** (kiểm đếm), **nồng độ cồn** người điều khiển ô tô (bắt buộc đo). Xe máy nằm ngoài phạm vi. |
+
+Ở hai chế độ tuần tra: xe có dấu hiệu vi phạm ở gần hiện biểu tượng **!** vàng, thẻ quan sát ghi rõ "Dấu hiệu". Ra hiệu lệnh dừng xe bằng còi hụ và loa.
 
 ## 3. Điều khiển
 
@@ -63,7 +66,8 @@ Toàn bộ lỗi và mức phạt nằm trong **`js/data.js`** (`DATA.VIOLATIONS
 - Căn cứ: **Nghị định 168/2024/NĐ-CP** (hiệu lực 01/01/2025), Luật TTATGTĐB 2024, Thông tư 73/2024/TT-BCA.
 - Mục có `verify: true` (hiện dấu ⚠ trong game) là **điều/khoản/điểm hoặc mức trừ điểm chưa đối chiếu được với văn bản gốc**.
   Mức tiền phạt đã được đối chiếu qua các nguồn tổng hợp. Trước khi dùng game để tuyên truyền, cần kiểm tra lại các mục này.
-- Chưa đưa vào game: lỗi *không có* đăng ký xe, tạm giữ phương tiện, xe quá tải. Các lỗi này phức tạp, dễ sai khi đơn giản hóa.
+- Lỗi chuyên đề ô tô (Điều 20, 21): quá tải theo 4 mức (trên 10–30%, 30–50%, 50–100%, 100–150%; từ 10% trở xuống chưa xử phạt), chở hàng vượt chiều cao xếp hàng (giới hạn 4,2 m áp dụng cho xe trong game), xe khách chở quá số người (phạt theo mỗi người vượt, tuyến dưới 300 km, tổng không quá 75 triệu đồng). Toàn bộ đánh dấu ⚠ cần đối chiếu.
+- Chưa đưa vào game: lỗi *không có* đăng ký xe, tạm giữ phương tiện, quá tải trên 150%, vượt chiều dài/chiều rộng xếp hàng, xử phạt chủ xe/doanh nghiệp vận tải.
 
 ## 6. Cấu trúc mã nguồn
 

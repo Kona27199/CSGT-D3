@@ -193,7 +193,7 @@ body.has-touch #toast { top: 96px; }
 #touch.cp #stick, #touch.cp #btnAct { display: none; }
 body.has-touch .cp-btns small { display: none; }
 
-.modes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
 .mode { text-align: left; background: var(--panel2); color: var(--dim); border: 0; padding: 10px; cursor: pointer; font-family: var(--font); box-shadow: 0 0 0 3px var(--line); }
 .mode b { display: block; color: var(--text); font-size: 14px; margin-bottom: 3px; }
 .mode span { font-size: 12px; line-height: 1.35; }
@@ -223,3 +223,4 @@ body.has-touch .cp-btns small { display: none; }
   .cp-btns .btn { padding: 10px 6px; font-size: 14px; }
   #hud .hud-box.right { margin-right: 0; }
 }
+.panel.mid { max-width: 680px; }

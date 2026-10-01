@@ -61,7 +61,7 @@ const TRAFFIC = {
       state: 'drive', speed: 0, t: U.range(0, 10), seen: false, ranRed: false, redWitnessed: false,
       measured: null, radarShown: 0, stopped: false, handled: false
     };
-    v.len = kind === 'moto' ? 16 : kind === 'car' ? 24 : 34;
+    v.len = kind === 'moto' ? 16 : kind === 'car' ? 24 : kind === 'bus' ? 36 : 34;
     v.wid = kind === 'moto' ? 8 : kind === 'car' ? 12 : 14;
     /* hồ sơ vi phạm */
     if (kind === 'moto') {
@@ -80,7 +80,22 @@ const TRAFFIC = {
       v.cruiseKmh = lim + U.int(tr[0], tr[1]);
       v.speeder = true;
     }
-    if (kind === 'truck') v.cruiseKmh = Math.min(v.cruiseKmh, lim + 12);
+    if (kind === 'truck' || kind === 'bus') v.cruiseKmh = Math.min(v.cruiseKmh, lim + 12);
+    /* chuyên đề: tải trọng, chiều cao xếp hàng (xe tải); số người (xe khách) */
+    v.overPct = null; v.height = 0; v.heightLimit = 0; v.busSeats = 0; v.busExcess = 0; v.busPeople = 0;
+    if (kind === 'truck') {
+      v.capT = U.pick([5, 8, 10, 15]);
+      if (U.chance(p.overload || 0)) { const tr = U.pick([[13, 27], [33, 47], [55, 95], [105, 140]]); v.overPct = U.int(tr[0], tr[1]); }
+      else v.overPct = U.int(-35, 8);
+      v.heightLimit = 4.2;
+      v.height = U.chance(p.oversize || 0) ? Math.round((4.2 + U.range(0.3, 1.0)) * 10) / 10 : Math.round(U.range(2.6, 4.0) * 10) / 10;
+      if (v.overPct > 30) v.cruiseKmh = Math.min(v.cruiseKmh, lim - 12);
+    }
+    if (kind === 'bus') {
+      v.busSeats = U.pick([29, 45]);
+      v.busExcess = U.chance(p.busOver || 0) ? U.int(3, Math.floor(v.busSeats * 0.35)) : 0;
+      v.busPeople = v.busExcess ? v.busSeats + v.busExcess : v.busSeats - U.int(0, 9);
+    }
     v.alc = 0;
     if (U.chance(p.alcohol)) {
       const lv = U.weighted({ 1: 4, 2: 3, 3: 3 });
@@ -92,6 +107,8 @@ const TRAFFIC = {
     v.reg = U.chance(p.noCarryReg) ? 'forgot' : 'ok';
     v.ins = U.chance(p.noIns) ? U.pick(['none', 'expired']) : 'ok';
     v.react = U.weighted(shift.react);
+    /* tuần tra theo phạm vi: mô tô chỉ xử lý xe mô tô; ô tô chỉ xử lý ô tô */
+    if ((shift.scope === 'moto' && kind !== 'moto') || (shift.scope === 'car' && kind === 'moto')) TRAFFIC.strip(v, lim);
     v.flee = U.chance(shift.flee || 0);
     const female = U.chance(0.35);
     const N = DATA.NAMES;
@@ -107,6 +124,17 @@ const TRAFFIC = {
     v.spr = TRAFFIC.sprite(v);
     TRAFFIC.pos(v);
     return v;
+  },
+
+  /* Xoá mọi vi phạm (phương tiện ngoài phạm vi chuyên đề) */
+  strip(v, lim) {
+    v.helmet = true; v.pass = 0; v.passHelmet = true; v.phone = false; v.runRed = false;
+    if (v.kind === 'moto') v.len = 16;
+    if (v.speeder) { v.speeder = false; v.cruiseKmh = lim - U.range(4, 13); }
+    v.alc = 0; v.weave = false; v.lic = 'ok'; v.reg = 'ok'; v.ins = 'ok';
+    if (v.overPct != null) v.overPct = Math.min(v.overPct, 5);
+    if (v.height > v.heightLimit) v.height = 3.8;
+    v.busExcess = 0; if (v.busPeople > v.busSeats) v.busPeople = v.busSeats;
   },
 
   /* toạ độ thế giới từ (s, lệch ngang) */
@@ -245,6 +273,12 @@ const TRAFFIC = {
     if (v.lic === 'forgot') out.push(P + 'nocarry_lic');
     if (v.reg === 'forgot') out.push(P + 'nocarry_reg');
     if (v.ins !== 'ok') out.push(P + 'noins');
+    if (v.kind === 'truck') {
+      const lt = DATA.loadTier(v.overPct);
+      if (lt) out.push('c_load' + lt);
+      if (v.height > v.heightLimit) out.push('c_height');
+    }
+    if (v.kind === 'bus' && v.busExcess > 0) out.push('c_bus_over');
     return out;
   },
 
@@ -260,6 +294,9 @@ const TRAFFIC = {
     if (v.phone) t.push('phone');
     if (v.redWitnessed) t.push('redlight');
     if (v.measured != null && DATA.speedTier(v.veh, v.measured - v.lane.limit)) t.push('speed');
+    if (v.kind === 'truck' && DATA.loadTier(v.overPct)) t.push('load');
+    if (v.kind === 'truck' && v.height > v.heightLimit) t.push('height');
+    if (v.kind === 'bus' && v.busExcess > 0) t.push('bus');
     return t;
   },
 
@@ -276,6 +313,9 @@ const TRAFFIC = {
     if (v.redWitnessed) t.push('📷 Vượt đèn đỏ');
     if (v.measured != null && DATA.speedTier(v.veh, v.measured - v.lane.limit)) t.push('📡 Quá tốc độ');
     if (v.weave) t.push('〰 Lạng lách, nghi có cồn');
+    if (v.kind === 'truck' && DATA.loadTier(v.overPct)) t.push('⚖ Xe tải chở hàng nặng, chạy ì ạch');
+    if (v.kind === 'truck' && v.height > v.heightLimit) t.push('📏 Hàng xếp cao vượt thành thùng');
+    if (v.kind === 'bus' && v.busExcess > 0) t.push('🚌 Xe khách đông, có người đứng ở cửa');
     return t;
   },
 
@@ -319,12 +359,37 @@ const TRAFFIC = {
       r(L - 1, 2, 1, 2, '#fff6b0'); r(L - 1, W - 4, 1, 2, '#fff6b0');
       r(0, 2, 1, 2, '#c1121f'); r(0, W - 4, 1, 2, '#c1121f');
       if (v.phone) { r(L - 8, 3, 2, 2, '#5ef2ff'); r(L - 8, 3, 1, 1, '#ffffff'); }
+    } else if (v.kind === 'bus') {
+      const col = U.pick(['#f1f1f1', '#e9c46a', '#2a9d8f', '#3a86ff', '#c1121f']);
+      r(5, 0, 5, 1, '#111'); r(5, W - 1, 5, 1, '#111'); r(L - 9, 0, 5, 1, '#111'); r(L - 9, W - 1, 5, 1, '#111');
+      r(0, 1, L, W - 2, col);
+      g.clearRect(0, 1, 1, 1); g.clearRect(0, W - 2, 1, 1); g.clearRect(L - 1, 1, 1, 1); g.clearRect(L - 1, W - 2, 1, 1);
+      for (let i = 3; i < L - 5; i += 4) { r(i, 1, 3, 1, '#1c2a3a'); r(i, W - 2, 3, 1, '#1c2a3a'); }
+      r(L - 3, 2, 2, W - 4, '#1c2a3a'); r(L - 3, 2, 1, W - 4, '#3d5a78');
+      r(10, 4, 8, W - 8, 'rgba(255,255,255,0.35)'); r(11, 5, 6, W - 10, '#9aa5b1'); // máy lạnh trên nóc
+      r(2, 3, 30, 1, 'rgba(0,0,0,0.12)');
+      r(L - 1, 2, 1, 2, '#fff6b0'); r(L - 1, W - 4, 1, 2, '#fff6b0');
+      r(0, 2, 1, 2, '#c1121f'); r(0, W - 4, 1, 2, '#c1121f');
+      if (v.busExcess > 0) { r(L - 7, W - 2, 3, 1, '#e0ac69'); r(L - 7, W - 1, 1, 1, '#2b1d14'); r(L - 5, W - 1, 1, 1, '#2b1d14'); } // người đứng ở cửa
+      if (v.phone) { r(L - 5, 3, 2, 2, '#5ef2ff'); r(L - 5, 3, 1, 1, '#ffffff'); }
     } else {
       const cab = U.pick(['#1d4e89', '#c1121f', '#2a9d8f', '#e9c46a']);
       const box = U.pick(['#d9d9d9', '#b56576', '#6d6875', '#e76f51']);
       r(4, 0, 5, 1, '#111'); r(4, W - 1, 5, 1, '#111'); r(14, 0, 5, 1, '#111'); r(14, W - 1, 5, 1, '#111'); r(L - 7, 0, 4, 1, '#111'); r(L - 7, W - 1, 4, 1, '#111');
       r(0, 1, L - 10, W - 2, box);
       for (let i = 3; i < L - 11; i += 4) r(i, 1, 1, W - 2, 'rgba(0,0,0,0.15)');
+      if (DATA.loadTier(v.overPct)) {
+        /* hàng chất đầy, vun cao */
+        r(1, 2, L - 12, W - 4, '#8d6e63');
+        for (let i = 2; i < L - 12; i += 3) r(i, 3 + (i % 2), 2, W - 7, '#a1887f');
+        r(3, 4, L - 16, W - 8, '#6d4c41');
+      }
+      if (v.height > v.heightLimit) {
+        /* hàng xếp cao: khối hàng sẫm màu, có dây chằng */
+        r(1, 1, L - 12, W - 2, '#4e6e8e');
+        for (let i = 2; i < L - 12; i += 5) r(i, 1, 1, W - 2, '#ffd23f');
+        r(1, 1, L - 12, 1, '#2f4356'); r(1, W - 2, L - 12, 1, '#2f4356');
+      }
       r(L - 10, 1, 1, W - 2, '#333');
       r(L - 9, 1, 9, W - 2, cab); r(L - 4, 2, 2, W - 4, '#1c2a3a');
       r(L - 1, 2, 1, 2, '#fff6b0'); r(L - 1, W - 4, 1, 2, '#fff6b0');

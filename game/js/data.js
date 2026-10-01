@@ -49,7 +49,31 @@ DATA.VIOLATIONS = {
   c_nolicense:   { veh: 'car', group: 'docs',    name: 'Không có giấy phép lái xe', fine: [18000000, 20000000], basis: 'Điều 18', extra: '', verify: true },
   c_nocarry_lic: { veh: 'car', group: 'docs',    name: 'Không mang theo giấy phép lái xe', fine: [300000, 400000], basis: 'Điều 18', extra: '', verify: true },
   c_nocarry_reg: { veh: 'car', group: 'docs',    name: 'Không mang theo chứng nhận đăng ký xe', fine: [300000, 400000], basis: 'Điều 18', extra: '', verify: true },
-  c_noins:       { veh: 'car', group: 'docs',    name: 'Không có hoặc không mang theo Giấy chứng nhận bảo hiểm bắt buộc TNDS còn hiệu lực', fine: [400000, 600000], basis: 'Điều 18', extra: '', verify: true }
+  c_noins:       { veh: 'car', group: 'docs',    name: 'Không có hoặc không mang theo Giấy chứng nhận bảo hiểm bắt buộc TNDS còn hiệu lực', fine: [400000, 600000], basis: 'Điều 18', extra: '', verify: true },
+
+  /* ---------------- CHUYÊN ĐỀ Ô TÔ: QUÁ TẢI, QUÁ KHỔ, XE KHÁCH (Điều 20, Điều 21) ---------------- */
+  c_load1:       { veh: 'car', group: 'load',    name: 'Chở hàng vượt khối lượng hàng chuyên chở cho phép (ghi trong GCN kiểm định) trên 10% đến 30%', fine: [800000, 1000000], basis: 'Điều 21', extra: '', verify: true },
+  c_load2:       { veh: 'car', group: 'load',    name: 'Chở hàng vượt khối lượng hàng chuyên chở cho phép trên 30% đến 50%', fine: [3000000, 5000000], basis: 'Điều 21', extra: '', verify: true },
+  c_load3:       { veh: 'car', group: 'load',    name: 'Chở hàng vượt khối lượng hàng chuyên chở cho phép trên 50% đến 100%', fine: [5000000, 7000000], basis: 'Điều 21', extra: 'Trừ 04 điểm GPLX', verify: true },
+  c_load4:       { veh: 'car', group: 'load',    name: 'Chở hàng vượt khối lượng hàng chuyên chở cho phép trên 100% đến 150%', fine: [7000000, 8000000], basis: 'Điều 21', extra: '', verify: true },
+  c_height:      { veh: 'car', group: 'size',    name: 'Chở hàng vượt quá chiều cao xếp hàng cho phép (quá khổ)', fine: [2000000, 3000000], basis: 'Điều 21', extra: 'Trừ 02 điểm GPLX', verify: true },
+  c_bus_over:    { veh: 'car', group: 'bus',     name: 'Chở quá số người được phép chở (xe chở hành khách, trừ xe buýt), tuyến dưới 300 km', fine: [400000, 600000], perPerson: true, basis: 'Điều 20', extra: 'Tính trên mỗi người vượt quá; tổng mức phạt không quá 75.000.000 đ', verify: true }
+};
+
+/* Tỷ lệ chở vượt khối lượng cho phép (%) -> mức (từ 10% trở xuống: chưa xử phạt) */
+DATA.loadTier = function (over) {
+  if (over <= 10) return null;
+  if (over <= 30) return 1;
+  if (over <= 50) return 2;
+  if (over <= 100) return 3;
+  return 4;
+};
+/* Khung phạt thực tế (nhân số người vượt quá với lỗi tính theo đầu người) */
+DATA.fineOf = function (id, v) {
+  const V = DATA.VIOLATIONS[id];
+  if (!V.perPerson || !v || !v.busExcess) return V.fine;
+  const cap = 75000000;
+  return [Math.min(cap, V.fine[0] * v.busExcess), Math.min(cap, V.fine[1] * v.busExcess)];
 };
 
 /* Ngưỡng tốc độ (km/h vượt quá) -> hậu tố mã lỗi */
@@ -174,15 +198,36 @@ DATA.TUTORIAL_CP = [
 ];
 
 DATA.MODES = {
-  cp: { name: 'Chốt kiểm soát', desc: 'Xe vào chốt lần lượt, phóng to để quan sát. Dễ tiếp cận.' },
-  patrol: { name: 'Tuần tra cơ động (Khó)', desc: 'Tự di chuyển trên phố, tự phát hiện xe vi phạm giữa dòng xe.' }
+  cp: { name: 'Chốt kiểm soát', icon: '🚧', desc: 'Đứng chốt. Xe vào chốt lần lượt, phóng to để quan sát. Dễ tiếp cận.' },
+  moto: { name: 'Tuần tra mô tô', icon: '🏍', desc: 'Tuần tra lưu động bằng mô tô trên phố. Xử lý vi phạm của xe mô tô, xe máy.' },
+  car: { name: 'Tuần tra ô tô', icon: '🚓', desc: 'Tuần tra lưu động bằng ô tô trên quốc lộ. Chuyên đề: quá tải, quá khổ, xe khách, nồng độ cồn.' }
 };
 
+/* Hồ sơ chuyên đề cho tuần tra ô tô (ghép với giờ, thời tiết của ca) */
+DATA.carPatrolShift = function (sh) {
+  return Object.assign({}, sh, {
+    map: 'highway', scope: 'car', radar: true, checkpoint: false,
+    short: sh.short + ' · Ô tô',
+    density: Math.max(0.9, sh.density * 0.9),
+    mix: { moto: 0.3, car: 0.33, truck: 0.22, bus: 0.15 },
+    p: Object.assign({}, sh.p, { alcohol: Math.max(0.15, sh.p.alcohol), speed: 0.15, overload: 0.4, oversize: 0.2, busOver: 0.45 }),
+    accident: sh.accident
+  });
+};
+
+DATA.TUTORIAL_MOTO = [
+  'Chào đồng chí! Hôm nay đồng chí tuần tra lưu động bằng mô tô trên địa bàn, tập trung xử lý vi phạm của xe mô tô, xe máy.',
+  'Điều khiển xe tuần tra: phím mũi tên hoặc W A S D. Trên điện thoại dùng cần điều khiển bên trái.'
+];
+DATA.TUTORIAL_CAR = [
+  'Chào đồng chí! Hôm nay tổ công tác tuần tra lưu động bằng ô tô trên quốc lộ theo chuyên đề: xe quá tải, quá khổ, xe khách chở quá số người và nồng độ cồn.',
+  'Điều khiển xe tuần tra: phím mũi tên hoặc W A S D. Trên điện thoại dùng cần điều khiển bên trái.',
+  'Xe tải: dùng cân để kiểm tra tải trọng, đo chiều cao xếp hàng. Xe khách: kiểm đếm số người so với số chỗ ghi trong giấy chứng nhận kiểm định. Lưu ý: chở vượt khối lượng cho phép từ 10% trở xuống chưa bị xử phạt.'
+];
 DATA.TUTORIAL = [
   'Chào đồng chí! Tôi là Thiếu tá Trần Minh, Đội trưởng. Hôm nay đồng chí đi tuần cùng tổ công tác của tôi.',
-  'Di chuyển: phím mũi tên hoặc W A S D. Trên điện thoại dùng cần điều khiển bên trái.',
-  'Đến gần phương tiện, khung vàng sẽ khóa mục tiêu. Góc phải màn hình phóng to phương tiện để đồng chí quan sát: mũ bảo hiểm, số người trên xe, điện thoại... Xe có dấu hiệu vi phạm ở gần sẽ hiện biểu tượng ! màu vàng.',
-  'Phát hiện vi phạm thì nhấn SPACE (hoặc nút DỪNG XE) để ra hiệu lệnh dừng. Chỉ dừng xe khi có căn cứ. Dừng xe tùy tiện sẽ bị trừ điểm.',
+  'Bám theo phương tiện, khung vàng sẽ khóa mục tiêu. Góc phải màn hình phóng to phương tiện để đồng chí quan sát: mũ bảo hiểm, số người trên xe, điện thoại... Xe có dấu hiệu vi phạm ở gần sẽ hiện biểu tượng ! màu vàng.',
+  'Phát hiện vi phạm thì nhấn SPACE (hoặc nút DỪNG XE): còi hụ và loa yêu cầu phương tiện dừng vào lề. Chỉ dừng xe khi có căn cứ. Dừng xe tùy tiện sẽ bị trừ điểm.',
   'Khi làm việc: chào, thông báo lý do dừng xe, kiểm tra giấy tờ, xác định đúng lỗi, rồi mới xử lý. Luôn đúng quy trình và liêm chính!',
   'Người dân có thể xuất trình giấy tờ qua ứng dụng VNeID. Nếu thông tin hợp lệ thì coi như đã mang theo.',
   'Hết giờ ca sẽ có bảng tổng kết. Chúc đồng chí hoàn thành tốt nhiệm vụ!'

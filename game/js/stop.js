@@ -8,7 +8,13 @@ const INSPECT = {
     alcohol: 'Nồng độ cồn', docs: 'Giấy tờ'
   },
 
-  vehName(v) { return v.kind === 'moto' ? 'Xe mô tô' : v.kind === 'car' ? 'Xe ô tô con' : 'Xe ô tô tải'; },
+  vehName(v) { return v.kind === 'moto' ? 'Xe mô tô' : v.kind === 'car' ? 'Xe ô tô con' : v.kind === 'bus' ? 'Xe ô tô khách' : 'Xe ô tô tải'; },
+
+  /* Bắt buộc đo nồng độ cồn: chốt theo kế hoạch hoặc chuyên đề tuần tra ô tô */
+  mustTest(v) { return G.shift.checkpoint || (G.shift.scope === 'car' && v.veh === 'car'); },
+  /* Chuyên đề tuần tra ô tô: được dừng ô tô để kiểm soát theo kế hoạch */
+  planned(v) { return G.shift.checkpoint || (G.shift.scope === 'car' && v.veh === 'car'); },
+  dec(n, d) { return n.toFixed(d).replace('.', ','); },
 
   zoomCanvas(v, scale) {
     const cv = document.createElement('canvas');
@@ -27,7 +33,10 @@ const INSPECT = {
 
   /* ---------- BẮT ĐẦU: ra hiệu lệnh dừng xe ---------- */
   command(v) {
-    AUDIO.whistle();
+    if (PLAYER.veh) {
+      AUDIO.siren();
+      UI.toast('📢 Loa: "Xe biển số ' + v.plate + ', đề nghị giảm tốc độ, dừng xe vào lề bên phải!"');
+    } else AUDIO.whistle();
     v.stopped = true;
     if (v.flee) {
       v.state = 'flee';
@@ -75,6 +84,9 @@ const INSPECT = {
     if (v.lane.wrong || v.wrongReport) html += '<div class="warn">⛔ Phương tiện đi ngược chiều trên đường một chiều' + (v.wrongReport ? ' (tổ công tác phía trước thông báo)' : '') + '.</div>';
     if (v.measured != null) html += '<div class="warn">📡 Máy đo tốc độ ghi nhận: <b>' + v.measured + ' km/h</b> (tốc độ tối đa cho phép ' + v.lane.limit + ' km/h).</div>';
     if (c.cue) html += '<div class="warn">🍺 Người điều khiển có hơi thở nồng mùi rượu bia, mặt đỏ.</div>';
+    if (v.kind === 'truck') html += '<div>Xe tải: khối lượng hàng chuyên chở cho phép ' + v.capT + ' tấn (theo GCN kiểm định).</div>';
+    if (v.kind === 'bus') html += '<div>Xe khách tuyến cố định (cự ly dưới 300 km), ' + v.busSeats + ' chỗ theo GCN kiểm định.</div>';
+    TRAFFIC.signs(v).filter(x => /^(⚖|📏|🚌)/.test(x)).forEach(x => { html += '<div class="warn">' + U.esc(x) + '</div>'; });
     if (v.weave) html += '<div class="warn">〰 Phương tiện chạy lạng lách, không vững tay lái.</div>';
     info.innerHTML = html;
     body.appendChild(info);
@@ -123,7 +135,12 @@ const INSPECT = {
       '<div class="doc">Bảo hiểm: ' + insHtml + '</div>' +
       '<h4>🍺 Nồng độ cồn</h4>' +
       '<div class="doc"><button class="btn sm" id="btnAlc">Đo nồng độ cồn</button> <span id="alcRes">' +
-      (G.shift.checkpoint ? '<i>Chốt kiểm tra theo kế hoạch: cần đo cho mọi người điều khiển.</i>' : '<i>Không bắt buộc. Đo khi có dấu hiệu.</i>') + '</span></div>';
+      (G.shift.checkpoint ? '<i>Chốt kiểm tra theo kế hoạch: cần đo cho mọi người điều khiển.</i>' : INSPECT.mustTest(v) ? '<i>Chuyên đề nồng độ cồn: cần đo cho người điều khiển ô tô.</i>' : '<i>Không bắt buộc. Đo khi có dấu hiệu.</i>') + '</span></div>' +
+      (v.kind === 'truck' ? '<h4>🚚 Kiểm tra tải trọng, kích thước</h4>' +
+        '<div class="doc"><button class="btn sm" id="btnWeigh">⚖ Cân kiểm tra tải trọng</button> <span id="weighRes"></span></div>' +
+        '<div class="doc"><button class="btn sm" id="btnHeight">📏 Đo chiều cao xếp hàng</button> <span id="heightRes"></span></div>' : '') +
+      (v.kind === 'bus' ? '<h4>🚌 Kiểm tra xe khách</h4>' +
+        '<div class="doc"><button class="btn sm" id="btnCount">👥 Kiểm đếm hành khách</button> <span id="countRes"></span></div>' : '');
     body.appendChild(docs);
     const lk = docs.querySelector('#btnLookup');
     if (lk) lk.onclick = () => {
@@ -131,6 +148,23 @@ const INSPECT = {
       docs.querySelector('#lookupRes').innerHTML = v.lic === 'forgot'
         ? '<span class="ok">Hệ thống: người này CÓ GPLX hạng ' + licClass + ' còn giá trị.</span>'
         : '<span class="bad">Hệ thống: KHÔNG tìm thấy GPLX của người này.</span>';
+    };
+    const bw = docs.querySelector('#btnWeigh');
+    if (bw) bw.onclick = () => {
+      bw.disabled = true; AUDIO.beep(); c.weighed = true;
+      const act = v.capT * (1 + v.overPct / 100);
+      docs.querySelector('#weighRes').innerHTML = 'Hàng chuyên chở thực tế: <b>' + INSPECT.dec(act, 2) + ' tấn</b> / cho phép ' + v.capT + ' tấn → <b class="' + (v.overPct > 10 ? 'bad' : 'ok') + '">' +
+        (v.overPct > 0 ? 'vượt ' + v.overPct + '%' : 'không vượt') + '</b>';
+    };
+    const bh = docs.querySelector('#btnHeight');
+    if (bh) bh.onclick = () => {
+      bh.disabled = true; AUDIO.beep(); c.measuredH = true;
+      docs.querySelector('#heightRes').innerHTML = 'Chiều cao xếp hàng: <b class="' + (v.height > v.heightLimit ? 'bad' : 'ok') + '">' + INSPECT.dec(v.height, 1) + ' m</b> (giới hạn cho phép đối với xe này: ' + INSPECT.dec(v.heightLimit, 1) + ' m)';
+    };
+    const bc = docs.querySelector('#btnCount');
+    if (bc) bc.onclick = () => {
+      bc.disabled = true; AUDIO.beep(); c.counted = true;
+      docs.querySelector('#countRes').innerHTML = 'Số người trên xe (không kể lái xe, phụ xe): <b class="' + (v.busExcess ? 'bad' : 'ok') + '">' + v.busPeople + '</b> / ' + v.busSeats + ' chỗ';
     };
     const ab = docs.querySelector('#btnAlc');
     ab.onclick = () => {
@@ -171,7 +205,7 @@ const INSPECT = {
   },
 
   /* ---------- BƯỚC 3: GHÉP BẰNG CHỨNG VỚI LỖI VÀ MỨC PHẠT ---------- */
-  fineStr(id) { const V = DATA.VIOLATIONS[id]; return U.money(V.fine[0]) + ' – ' + U.money(V.fine[1]); },
+  fineStr(id) { const V = DATA.VIOLATIONS[id]; return U.money(V.fine[0]) + ' – ' + U.money(V.fine[1]) + (V.perPerson ? '/người vượt' : ''); },
 
   /* Một lỗi khác cùng loại xe có khung phạt khác -> dùng làm đáp án nhiễu "sai mức phạt" */
   wrongFine(id) {
@@ -210,6 +244,12 @@ const INSPECT = {
     if (c.tested) {
       add('🍺', 'Kết quả đo nồng độ cồn: ' + v.alc.toFixed(3).replace('.', ',') + ' mg/l khí thở', [P + 'alc1', P + 'alc2', P + 'alc3'], true);
     }
+    if (c.weighed) {
+      const act = v.capT * (1 + v.overPct / 100);
+      add('⚖', 'Kết quả cân: hàng chuyên chở ' + INSPECT.dec(act, 2) + ' tấn / cho phép ' + v.capT + ' tấn (' + (v.overPct > 0 ? 'vượt ' + v.overPct + '%' : 'không vượt') + ')', ['c_load1', 'c_load2', 'c_load3', 'c_load4'], true);
+    }
+    if (c.measuredH) add('📏', 'Chiều cao xếp hàng ' + INSPECT.dec(v.height, 1) + ' m (giới hạn cho phép đối với xe này ' + INSPECT.dec(v.heightLimit, 1) + ' m)', ['c_height'], true);
+    if (c.counted) add('👥', 'Xe khách ' + v.busSeats + ' chỗ, kiểm đếm được ' + v.busPeople + ' hành khách', ['c_bus_over'], true);
     let lic;
     if (v.lic === 'ok') lic = 'xuất trình bản giấy, còn giá trị';
     else if (v.lic === 'vneid') lic = 'xuất trình qua ứng dụng VNeID, hợp lệ';
@@ -289,7 +329,7 @@ const INSPECT = {
   required(id, c) {
     const V = DATA.VIOLATIONS[id];
     if (V.group === 'event') return c.v.redWitnessed;
-    if (V.group === 'alcohol') return c.cue || G.shift.checkpoint;
+    if (V.group === 'alcohol') return c.cue || INSPECT.mustTest(c.v);
     return true;
   },
 
@@ -304,7 +344,7 @@ const INSPECT = {
       let st;
       if (a.id === r.correct && (!a.id || a.fine === r.correct)) {
         st = 'ok';
-        if (r.correct) { pts += 20; G.stats.correct++; confirmed++; fmin += DATA.VIOLATIONS[r.correct].fine[0]; fmax += DATA.VIOLATIONS[r.correct].fine[1]; }
+        if (r.correct) { pts += 20; G.stats.correct++; confirmed++; const F = DATA.fineOf(r.correct, v); fmin += F[0]; fmax += F[1]; }
         else { pts += 5; }
       } else if (r.correct && a.id === r.correct) { st = 'fine'; pts -= 10; G.stats.wrong++; confirmed++; }
       else if (r.correct) { st = 'miss'; pts -= 15; G.stats.missed++; if (a.id) confirmed++; }
@@ -324,11 +364,11 @@ const INSPECT = {
     if (!c.released && extra.some(e => e.st === 'miss' && DATA.VIOLATIONS[e.id].group === 'alcohol')) {
       c.notes.push('✖ Có dấu hiệu sử dụng rượu bia nhưng chưa đo nồng độ cồn.');
     }
-    if (!c.released && sh.checkpoint && !c.tested && !c.truth.some(id => DATA.VIOLATIONS[id].group === 'alcohol')) {
+    if (!c.released && INSPECT.mustTest(v) && !c.tested && !c.truth.some(id => DATA.VIOLATIONS[id].group === 'alcohol')) {
       pts -= 10;
-      c.notes.push('✖ Tại chốt kiểm tra nồng độ cồn theo kế hoạch, phải đo nồng độ cồn người điều khiển.');
+      c.notes.push(sh.checkpoint ? '✖ Tại chốt kiểm tra nồng độ cồn theo kế hoạch, phải đo nồng độ cồn người điều khiển.' : '✖ Tuần tra chuyên đề: phải đo nồng độ cồn người điều khiển ô tô.');
     }
-    if (!sh.checkpoint && TRAFFIC.visibleViolations(v).length === 0 && !v.weave && !c.cue) {
+    if (!INSPECT.planned(v) && TRAFFIC.visibleViolations(v).length === 0 && !v.weave && !c.cue) {
       pts -= 10;
       c.notes.push('✖ Dừng xe khi chưa phát hiện dấu hiệu vi phạm (ca này không có kế hoạch kiểm soát chung).');
     }
@@ -351,7 +391,8 @@ const INSPECT = {
     const ST = { ok: ['✔', 'ok', 'Đúng'], fine: ['✖', 'bad', 'Đúng lỗi nhưng SAI mức phạt'], miss: ['✖', 'bad', 'Kết luận sai lỗi hoặc bỏ sót'], wrong: ['⚠', 'bad', 'Kết luận sai (không vi phạm)'], hidden: ['○', 'dim', 'Chưa phát hiện (không bắt buộc)'] };
     const law = id => {
       const V = DATA.VIOLATIONS[id];
-      return '<b>' + U.esc(V.name) + '</b><div class="sub">' + INSPECT.fineStr(id) + (V.extra ? ' · ' + U.esc(V.extra) : '') + ' · ' + U.esc(V.basis) + (V.verify ? ' ⚠' : '') + '</div>';
+      const tot = V.perPerson && v.busExcess ? ' (vượt ' + v.busExcess + ' người: ' + U.money(DATA.fineOf(id, v)[0]) + ' – ' + U.money(DATA.fineOf(id, v)[1]) + ')' : '';
+      return '<b>' + U.esc(V.name) + '</b><div class="sub">' + INSPECT.fineStr(id) + tot + (V.extra ? ' · ' + U.esc(V.extra) : '') + ' · ' + U.esc(V.basis) + (V.verify ? ' ⚠' : '') + '</div>';
     };
     let html = '<table class="res-tbl"><tr><th></th><th>Bằng chứng</th><th>Kết luận đúng</th></tr>';
     for (const x of res) {

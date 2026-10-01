@@ -50,6 +50,7 @@ const SAVE = {
     try {
       const raw = localStorage.getItem(SAVE.key);
       if (raw) Object.assign(SAVE.data, JSON.parse(raw));
+      if (!DATA.MODES[SAVE.data.mode]) SAVE.data.mode = SAVE.data.mode === 'patrol' ? 'moto' : 'cp';
     } catch (e) { /* bỏ qua */ }
   },
   store() {

@@ -149,8 +149,8 @@ const UI = {
 
   shifts() {
     const md = SAVE.data.mode || 'cp';
-    let html = '<div class="panel"><h2>Chọn ca tuần tra</h2>' +
-      '<div class="modes">' + Object.keys(DATA.MODES).map(k => '<button class="mode ' + (k === md ? 'on' : '') + '" data-m="' + k + '"><b>' + DATA.MODES[k].name + '</b><span>' + DATA.MODES[k].desc + '</span></button>').join('') + '</div>' +
+    let html = '<div class="panel mid"><h2>Chọn ca tuần tra</h2>' +
+      '<div class="modes">' + Object.keys(DATA.MODES).map(k => '<button class="mode ' + (k === md ? 'on' : '') + '" data-m="' + k + '"><b>' + DATA.MODES[k].icon + ' ' + DATA.MODES[k].name + '</b><span>' + DATA.MODES[k].desc + '</span></button>').join('') + '</div>' +
       '<div class="shifts">';
     for (const sh of DATA.SHIFTS) {
       const un = SAVE.unlocked(sh.id), st = SAVE.data.stars[sh.id] || 0, best = SAVE.data.best[sh.id];
@@ -210,13 +210,15 @@ const UI = {
     const s = UI.screen(
       '<div class="panel wide"><h2>❔ Hướng dẫn chơi</h2>' +
       '<h4>Điều khiển</h4><ul>' +
-      '<li><b>Máy tính:</b> Mũi tên / W A S D để di chuyển · <b>SPACE</b> hoặc <b>E</b>: ra hiệu lệnh dừng xe / xử lý tai nạn · <b>ESC</b> hoặc <b>P</b>: tạm dừng · Phím số <b>1–3</b> để chọn nhanh đáp án.</li>' +
-      '<li><b>Điện thoại:</b> kéo cần điều khiển bên trái để di chuyển, nút <b>DỪNG XE</b> bên phải.</li></ul>' +
+      '<li><b>Máy tính:</b> Mũi tên / W A S D để điều khiển xe tuần tra · <b>SPACE</b> hoặc <b>E</b>: ra hiệu lệnh dừng xe / xử lý tai nạn · <b>ESC</b> hoặc <b>P</b>: tạm dừng · Phím số <b>1–3</b> để chọn nhanh đáp án.</li>' +
+      '<li><b>Điện thoại:</b> kéo cần điều khiển bên trái để lái xe tuần tra, nút <b>DỪNG XE</b> bên phải. Chế độ chốt: bấm nút trên bảng quan sát.</li></ul>' +
       '<h4>Chế độ Chốt kiểm soát</h4><ul>' +
       '<li>Từng phương tiện vào chốt, dừng trước mặt và hiện phóng to ở bảng quan sát. Quan sát mũ bảo hiểm, số người, điện thoại, tốc độ, tin báo.</li>' +
       '<li><b>DỪNG XE</b> (Space) nếu có dấu hiệu vi phạm, <b>CHO QUA</b> (C) nếu không. Cho qua đúng: <b>+5</b> · Bỏ lọt: <b>−10</b>.</li></ul>' +
-      '<h4>Chế độ Tuần tra cơ động (Khó)</h4><ul>' +
-      '<li>Xe có dấu hiệu vi phạm ở gần hiện biểu tượng <b style="color:#ffd23f">!</b>. Đến gần phương tiện, khung vàng khóa mục tiêu. Thẻ quan sát (góc phải) phóng to phương tiện: mũ bảo hiểm, số người, điện thoại (chấm xanh sáng), tốc độ (nếu có máy đo).</li>' +
+      '<h4>Chế độ Tuần tra lưu động (mô tô / ô tô)</h4><ul>' +
+      '<li><b>🏍 Mô tô:</b> tuần tra trên phố, xử lý vi phạm của xe mô tô, xe máy (mũ bảo hiểm, chở quá số người, điện thoại, vượt đèn đỏ, đi ngược chiều, tốc độ, nồng độ cồn, giấy tờ).</li>' +
+      '<li><b>🚓 Ô tô:</b> tuần tra trên quốc lộ theo chuyên đề: xe tải quá tải (cân tải trọng), quá khổ (đo chiều cao xếp hàng), xe khách chở quá số người (kiểm đếm), nồng độ cồn người điều khiển ô tô.</li>' +
+      '<li>Điều khiển xe tuần tra bằng phím mũi tên / W A S D hoặc cần điều khiển. Xe có dấu hiệu vi phạm ở gần hiện biểu tượng <b style="color:#ffd23f">!</b>. Bám theo phương tiện, khung vàng khóa mục tiêu. Thẻ quan sát (góc phải) phóng to phương tiện: mũ bảo hiểm, số người, điện thoại (chấm xanh sáng), tốc độ (nếu có máy đo).</li>' +
       '<li>Dấu <b style="color:#ff3b30">!</b> nhấp nháy trên xe: tổ công tác vừa ghi nhận xe vượt đèn đỏ.</li>' +
       '<li>Mỗi lần dừng xe có 3 bước: <b>Tiếp cận</b> → <b>Kiểm tra</b> (giấy tờ, tra cứu, đo nồng độ cồn) → <b>Kết luận theo bằng chứng</b>: mỗi bằng chứng chọn đúng lỗi và mức phạt, hoặc "Không vi phạm".</li>' +
       '<li>Mỗi ca, tình huống được sinh ngẫu nhiên: lỗi ẩn (không bằng lái, bảo hiểm hết hạn, nồng độ cồn…), thái độ người vi phạm khác nhau.</li></ul>' +
@@ -327,7 +329,7 @@ const UI = {
       g.clearRect(0, 0, cv.width, cv.height);
       g.drawImage(v.spr, 0, 0, cv.width, cv.height);
     }
-    let t = '<b>' + U.esc(v.plate) + '</b> · ' + (v.kind === 'moto' ? 'Xe máy' : v.kind === 'car' ? 'Ô tô' : 'Xe tải');
+    let t = '<b>' + U.esc(v.plate) + '</b> · ' + (v.kind === 'moto' ? 'Xe máy' : v.kind === 'car' ? 'Ô tô' : v.kind === 'bus' ? 'Xe khách' : 'Xe tải');
     if (G.shift.radar) {
       const k = Math.round(v.speed / KPX);
       t += '<div class="radar ' + (k >= v.lane.limit + 5 ? 'bad' : '') + '">📡 ' + k + ' km/h <small>(tối đa ' + v.lane.limit + ')</small></div>';
