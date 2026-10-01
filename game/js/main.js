@@ -31,17 +31,33 @@ const G = {
     }
   },
 
-  /* Độ phân giải logic: cạnh ngắn ~216 px, co giãn toàn màn hình */
+  /* Canvas vẽ ở độ phân giải thật của màn hình; mỗi điểm ảnh đồ họa = k điểm ảnh màn hình (số nguyên → luôn sắc nét).
+   * Mặc định nhìn rộng ~250 đơn vị theo cạnh ngắn; người chơi thu phóng bằng +/−, con lăn chuột. */
   resize() {
     const W = window.innerWidth, H = window.innerHeight;
-    /* thế giới phóng to: cạnh ngắn màn hình ~150 đơn vị; canvas vẽ ở độ phân giải RS lần */
-    const scale = Math.max(1, Math.min(W, H) / 150);
-    G.view.w = Math.min(420, Math.ceil(W / scale));
-    G.view.h = Math.min(420, Math.ceil(H / scale));
-    G.cv.width = G.view.w * RS; G.cv.height = G.view.h * RS;
-    G.dark.width = G.view.w * RS; G.dark.height = G.view.h * RS;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const short = Math.min(W, H) * dpr;
+    G.kBase = Math.max(1, Math.round(short / (RS * 250)));
+    const step = SAVE.data.zoomStep || 0;
+    G.k = U.clamp(G.kBase + step, 1, G.kBase + 3);
+    G.scale = RS * G.k;
+    G.cv.width = Math.round(W * dpr); G.cv.height = Math.round(H * dpr);
+    G.dark.width = G.cv.width; G.dark.height = G.cv.height;
+    G.view.w = G.cv.width / G.scale; G.view.h = G.cv.height / G.scale;
     G.cam.w = G.view.w; G.cam.h = G.view.h;
     G.g.imageSmoothingEnabled = false;
+    const need = Math.ceil(G.view.w * G.view.h / 260);
+    while (G.drops.length < need) G.drops.push({ x: Math.random() * G.view.w, y: Math.random() * G.view.h, s: 180 + Math.random() * 120 });
+    G.drops.length = need;
+    const zl = UI.$('zoomLbl'); if (zl) zl.textContent = 'x' + G.k;
+  },
+
+  zoom(d) {
+    const step = (SAVE.data.zoomStep || 0) + d;
+    if (G.kBase + step < 1 || step > 3) return;
+    SAVE.data.zoomStep = step; SAVE.store();
+    G.resize();
+    AUDIO.click();
   },
 
   /* ---------------- ĐIỀU KHIỂN ---------------- */
@@ -66,6 +82,8 @@ const G = {
       if ((k === ' ' || k === 'e' || k === 'j') && G.mode === 'play') { G.act = true; e.preventDefault(); }
       if ((k === 'c' || k === 'enter') && G.mode === 'play') { G.pass = true; e.preventDefault(); }
       if ((k === 'escape' || k === 'p') && G.mode === 'play' && !UI.isModal()) { G.pause('menu'); UI.pauseMenu(); }
+      if ((k === '+' || k === '=') && !UI.isModal()) G.zoom(1);
+      if ((k === '-' || k === '_') && !UI.isModal()) G.zoom(-1);
       if (k.startsWith('arrow')) e.preventDefault();
     });
     window.addEventListener('keyup', e => { G.keys[e.key.toLowerCase()] = false; });
@@ -93,6 +111,9 @@ const G = {
     stick.addEventListener('pointerup', end);
     stick.addEventListener('pointercancel', end);
     UI.$('btnAct').addEventListener('pointerdown', e => { e.preventDefault(); AUDIO.init(); G.act = true; });
+    G.cv.addEventListener('wheel', e => { e.preventDefault(); if (Math.abs(e.deltaY) > 2) G.zoom(e.deltaY < 0 ? 1 : -1); }, { passive: false });
+    UI.$('zoomIn').addEventListener('click', () => G.zoom(1));
+    UI.$('zoomOut').addEventListener('click', () => G.zoom(-1));
     UI.$('btnPause').addEventListener('pointerdown', e => { e.preventDefault(); if (G.mode === 'play' && !UI.isModal()) { G.pause('menu'); UI.pauseMenu(); } });
   },
 
@@ -113,7 +134,9 @@ const G = {
     TRAFFIC.reset();
     G.shift = DATA.SHIFTS[1];
     G.prewarm(15);
+    LIFE.init(MAP.cur, G.shift);
     G.attractT = 0;
+    UI.initMinimap(MAP.cur, false);
   },
 
   prewarm(sec) {
@@ -163,14 +186,14 @@ const G = {
     G.stats = { passOk: 0, stops: 0, correct: 0, missed: 0, wrong: 0, escaped: 0, procOk: 0, procBad: 0, bribeRefused: 0, fineMin: 0, fineMax: 0, accident: null };
     G.target = null; G.pendingStop = null; G.act = false; G.actCool = 0;
     G.tally = { viol: {}, events: 0 };
-    G.drops = [];
-    for (let i = 0; i < 140; i++) G.drops.push({ x: Math.random() * 600, y: Math.random() * 600, s: 180 + Math.random() * 120 });
     G.mode = 'play';
     G.pauseWhy = null;
     UI._cache = {};
     UI.hud(true);
     EVENTS.start(shift);
     MISSIONS.start(mode, shift);
+    LIFE.init(m, shift);
+    UI.initMinimap(m, !G.cp);
     AUDIO.siren();
     const tkey = G.cp ? 'tutorialDone' : 'tut_' + mode;
     const tlines = G.cp ? DATA.TUTORIAL_CP : (mode === 'car' ? DATA.TUTORIAL_CAR : DATA.TUTORIAL_MOTO).concat(DATA.TUTORIAL.slice(1));
@@ -308,6 +331,7 @@ const G = {
       G.cam.x = U.clamp(m.pw / 2 - G.cam.w / 2 + Math.sin(G.attractT * 0.08) * 280, 0, m.pw - G.cam.w);
       G.cam.y = U.clamp(17 * TILE - G.cam.h / 2 + Math.sin(G.attractT * 0.05) * 90, 0, Math.max(0, m.ph - G.cam.h));
       TRAFFIC.updateLights(m, dt); TRAFFIC.spawnAll(m, G.shift, dt); TRAFFIC.update(m, dt, G.cam, () => {});
+      LIFE.update(dt, G.cam);
       return;
     }
     if (G.mode !== 'play') return;
@@ -316,6 +340,7 @@ const G = {
     TRAFFIC.updateLights(m, dt);
     TRAFFIC.spawnAll(m, G.shift, dt);
     EVENTS.update(dt);
+    LIFE.update(dt, G.cam);
     if (G.mode !== 'play') return;
     TRAFFIC.update(m, dt, G.cam, v => {
       if (v.event) return;
@@ -340,8 +365,8 @@ const G = {
     }
     const inp = G.input();
     PLAYER.update(dt, inp.x, inp.y);
-    G.cam.x = Math.round(U.clamp(PLAYER.x - G.cam.w / 2, 0, Math.max(0, m.pw - G.cam.w)));
-    G.cam.y = Math.round(U.clamp(PLAYER.y - G.cam.h / 2, 0, Math.max(0, m.ph - G.cam.h)));
+    G.cam.x = Math.round(U.clamp(PLAYER.x - G.cam.w / 2, 0, Math.max(0, m.pw - G.cam.w)) * RS) / RS;
+    G.cam.y = Math.round(U.clamp(PLAYER.y - G.cam.h / 2, 0, Math.max(0, m.ph - G.cam.h)) * RS) / RS;
     /* khóa mục tiêu */
     let best = null, bd = 72;
     for (const v of TRAFFIC.list) {
@@ -388,16 +413,25 @@ const G = {
   render() {
     const g = G.g, m = MAP.cur, cam = G.cam;
     if (!m) return;
-    g.setTransform(RS, 0, 0, RS, 0, 0);
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = '#0e1319';
+    g.fillRect(0, 0, G.cv.width, G.cv.height);
+    G.ox = cam.w > m.pw ? Math.round((cam.w - m.pw) / 2) : 0;
+    G.oy = cam.h > m.ph ? Math.round((cam.h - m.ph) / 2) : 0;
+    g.setTransform(G.scale, 0, 0, G.scale, G.ox * G.scale, G.oy * G.scale);
     g.imageSmoothingEnabled = false;
-    g.fillStyle = '#1a1a1a';
-    g.fillRect(0, 0, cam.w, cam.h);
     const sw = Math.min(cam.w, m.pw - cam.x), sh = Math.min(cam.h, m.ph - cam.y);
     g.drawImage(m.bg, cam.x * RS, cam.y * RS, sw * RS, sh * RS, 0, 0, sw, sh);
-    MAP.drawLights(g, m, cam);
+    LIFE.drawWater(g, cam);
+    LIFE.drawPeds(g, cam);
     TRAFFIC.draw(g, cam);
-    if (G.mode !== 'menu') EVENTS.draw(g, cam);
     if (G.mode !== 'menu' && G.cp && m.cpSpot) G.drawCones(g, m, cam);
+    if (G.mode !== 'menu') PLAYER.draw(g, cam);
+    MAP.drawLights(g, m, cam);
+    LIFE.drawTrees(g, cam);
+    g.drawImage(m.fg, cam.x * RS, cam.y * RS, sw * RS, sh * RS, 0, 0, sw, sh);
+    LIFE.drawParts(g, cam);
+    if (G.mode !== 'menu') EVENTS.draw(g, cam);
     if (G.mode === 'play' && !G.cp && Math.floor(performance.now() / 300) % 2 === 0) {
       for (const v of TRAFFIC.list) {
         if (v.state !== 'drive' || v.stopped || v.special) continue;
@@ -409,7 +443,6 @@ const G = {
         MAP.pixelText(g, '!', x - 1, y + 1, '#c0392b');
       }
     }
-    if (G.mode !== 'menu') PLAYER.draw(g, cam);
     /* khung khóa mục tiêu */
     const tv = G.mode === 'play' ? G.target : null;
     if (tv) {
@@ -424,7 +457,10 @@ const G = {
     }
     G.lighting();
     if (G.shift && G.shift.weather === 'rain') G.rain();
+    LIFE.drawBirds(g);
     if (G.mode !== 'menu') EVENTS.drawArrow(g, cam);
+    G.miniT = (G.miniT || 0) + 1;
+    if (G.miniT % 4 === 0) UI.drawMinimap();
   },
 
   drawCones(g, m, cam) {
@@ -437,53 +473,109 @@ const G = {
     }
   },
 
+  /* chùm sáng hình nón (đèn pha) */
+  cone(ctx, x, y, ang, len, spread, rgba0) {
+    const gr = ctx.createRadialGradient(x, y, 0, x, y, len);
+    gr.addColorStop(0, rgba0); gr.addColorStop(1, rgba0.replace(/[\d.]+\)$/, '0)'));
+    ctx.fillStyle = gr;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.arc(x, y, len, ang - spread, ang + spread); ctx.closePath(); ctx.fill();
+  },
+  glow(ctx, x, y, r, rgba0) {
+    const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, rgba0); gr.addColorStop(1, rgba0.replace(/[\d.]+\)$/, '0)'));
+    ctx.fillStyle = gr; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  },
+
   lighting() {
     const L = G.shift ? G.shift.light : 'day';
-    if (L === 'day') return;
-    const dg = G.dg, cam = G.cam, m = MAP.cur;
-    dg.setTransform(RS, 0, 0, RS, 0, 0);
-    dg.globalCompositeOperation = 'source-over';
-    dg.clearRect(0, 0, cam.w, cam.h);
-    dg.fillStyle = L === 'night' ? 'rgba(6,10,32,0.74)' : 'rgba(60,25,70,0.32)';
-    dg.fillRect(0, 0, cam.w, cam.h);
-    dg.globalCompositeOperation = 'destination-out';
-    const hole = (x, y, r, a) => {
-      const gr = dg.createRadialGradient(x, y, 0, x, y, r);
-      gr.addColorStop(0, 'rgba(0,0,0,' + a + ')'); gr.addColorStop(1, 'rgba(0,0,0,0)');
-      dg.fillStyle = gr; dg.fillRect(x - r, y - r, r * 2, r * 2);
-    };
-    for (const l of m.lamps) {
-      const x = l.x - cam.x, y = l.y - cam.y;
-      if (x < -40 || y < -40 || x > cam.w + 40 || y > cam.h + 40) continue;
-      hole(x, y, 36, 0.85);
+    const g = G.g, cam = G.cam, m = MAP.cur, t = performance.now() / 1000;
+    const rain = G.shift && G.shift.weather === 'rain';
+    const inV = (x, y, pad) => x > -pad && y > -pad && x < cam.w + pad && y < cam.h + pad;
+    if (L === 'day') {
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      const W = G.cv.width, H = G.cv.height;
+      const vg = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.45, W / 2, H / 2, Math.max(W, H) * 0.75);
+      vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, rain ? 'rgba(10,20,40,0.35)' : 'rgba(0,0,0,0.2)');
+      g.fillStyle = vg; g.fillRect(0, 0, W, H);
+      g.setTransform(G.scale, 0, 0, G.scale, G.ox * G.scale, G.oy * G.scale);
+      return;
     }
+    const night = L === 'night';
+    /* hoàng hôn: nhuộm cam phía trên, tím phía dưới */
+    if (!night) {
+      const lg = g.createLinearGradient(0, 0, 0, cam.h);
+      lg.addColorStop(0, 'rgba(255,140,60,0.22)'); lg.addColorStop(1, 'rgba(110,60,150,0.18)');
+      g.fillStyle = lg; g.fillRect(0, 0, cam.w, cam.h);
+    }
+    const dg = G.dg;
+    dg.setTransform(1, 0, 0, 1, 0, 0);
+    dg.globalCompositeOperation = 'source-over';
+    dg.clearRect(0, 0, G.dark.width, G.dark.height);
+    dg.fillStyle = night ? 'rgba(5,9,28,0.78)' : 'rgba(40,20,60,0.3)';
+    dg.fillRect(0, 0, G.dark.width, G.dark.height);
+    dg.setTransform(G.scale, 0, 0, G.scale, G.ox * G.scale, G.oy * G.scale);
+    dg.globalCompositeOperation = 'destination-out';
+    const lamps = m.lamps.map(l => ({ x: l.x - cam.x, y: l.y - cam.y })).filter(p => inV(p.x, p.y, 50));
+    for (const p of lamps) G.glow(dg, p.x + 3, p.y - 2, 44, 'rgba(0,0,0,0.92)');
+    const heads = [];
     for (const v of TRAFFIC.list) {
       const x = v.x - cam.x, y = v.y - cam.y;
-      if (x < -60 || y < -60 || x > cam.w + 60 || y > cam.h + 60) continue;
-      const ax = v.axis === 'x' ? v.dir : 0, ay = v.axis === 'y' ? v.dir : 0;
-      const ahead = v.len / 2 + 14;
-      hole(x + ax * ahead, y + ay * ahead, v.kind === 'moto' ? 16 : 22, 0.8);
+      if (!inV(x, y, 70) || v.state === 'crash') continue;
+      const ang = TRAFFIC.angle(v);
+      const fx = x + Math.cos(ang) * v.len / 2, fy = y + Math.sin(ang) * v.len / 2;
+      heads.push({ v: v, x: x, y: y, fx: fx, fy: fy, ang: ang });
+      G.cone(dg, fx, fy, ang, v.kind === 'moto' ? 32 : 46, v.kind === 'moto' ? 0.28 : 0.34, 'rgba(0,0,0,0.6)');
+      G.glow(dg, fx + Math.cos(ang) * 14, fy + Math.sin(ang) * 14, v.kind === 'moto' ? 12 : 17, 'rgba(0,0,0,0.5)');
+      G.glow(dg, x, y, v.len * 0.6, 'rgba(0,0,0,0.35)');
     }
-    if (G.mode !== 'menu') hole(PLAYER.x - cam.x, PLAYER.y - cam.y - 6, 30, 0.7);
+    if (G.mode !== 'menu') {
+      if (PLAYER.veh) {
+        const ang = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 }[PLAYER.face];
+        G.cone(dg, PLAYER.x - cam.x, PLAYER.y - cam.y, ang, 56, 0.36, 'rgba(0,0,0,0.65)');
+        G.glow(dg, PLAYER.x - cam.x + Math.cos(ang) * 20, PLAYER.y - cam.y + Math.sin(ang) * 20, 20, 'rgba(0,0,0,0.55)');
+      }
+      G.glow(dg, PLAYER.x - cam.x, PLAYER.y - cam.y - 4, 34, 'rgba(0,0,0,0.75)');
+    }
+    for (const w of m.windows) { const x = w.x - cam.x, y = w.y - cam.y; if (w.lit && inV(x, y, 10)) dg.fillRect(x, y, w.w, w.h); }
     const ep = G.mode !== 'menu' ? EVENTS.pos() : null;
-    if (ep) hole(ep.x - cam.x, ep.y - cam.y, 26, 0.6);
-    G.g.drawImage(G.dark, 0, 0, cam.w, cam.h);
-    /* quầng đèn */
-    const g = G.g;
+    if (ep) G.glow(dg, ep.x - cam.x, ep.y - cam.y, 30, 'rgba(0,0,0,0.7)');
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.drawImage(G.dark, 0, 0);
+    g.setTransform(G.scale, 0, 0, G.scale, G.ox * G.scale, G.oy * G.scale);
+    /* ánh sáng màu cộng thêm */
     g.globalCompositeOperation = 'lighter';
-    for (const l of m.lamps) {
-      const x = Math.round(l.x - cam.x), y = Math.round(l.y - cam.y);
-      if (x < -10 || y < -10 || x > cam.w + 10 || y > cam.h + 10) continue;
-      g.fillStyle = 'rgba(255,220,140,0.35)'; g.fillRect(x - 1, y - 1, 3, 3);
+    for (const p of lamps) {
+      G.glow(g, p.x + 3, p.y - 2, 34, night ? 'rgba(255,180,90,0.22)' : 'rgba(255,190,110,0.12)');
+      g.fillStyle = 'rgba(255,230,160,0.9)'; g.fillRect(p.x + 2.5, p.y - 11.75, 1.75, 0.75);
+      if (rain) { const rg = g.createLinearGradient(0, p.y, 0, p.y + 22); rg.addColorStop(0, 'rgba(255,200,120,0.25)'); rg.addColorStop(1, 'rgba(255,200,120,0)'); g.fillStyle = rg; g.fillRect(p.x + 1.5, p.y, 3, 22); }
+    }
+    for (const h of heads) {
+      G.glow(g, h.fx + Math.cos(h.ang) * 12, h.fy + Math.sin(h.ang) * 12, h.v.kind === 'moto' ? 13 : 18, night ? 'rgba(255,240,200,0.14)' : 'rgba(255,240,200,0.07)');
+      G.glow(g, h.fx, h.fy, 3, 'rgba(255,250,220,0.6)');
+      const bx = h.x - Math.cos(h.ang) * h.v.len / 2, by = h.y - Math.sin(h.ang) * h.v.len / 2;
+      const brake = h.v.state !== 'drive' || h.v.speed < h.v.cruiseKmh * KPX * 0.5;
+      G.glow(g, bx, by, brake ? 9 : 5, brake ? 'rgba(255,40,40,0.5)' : 'rgba(255,40,40,0.25)');
+      if (rain) { const rg = g.createLinearGradient(0, h.fy, 0, h.fy + 16); rg.addColorStop(0, 'rgba(255,240,200,0.18)'); rg.addColorStop(1, 'rgba(255,240,200,0)'); g.fillStyle = rg; g.fillRect(h.fx - 1.5, h.fy, 3, 16); }
+    }
+    for (const w of m.windows) {
+      const x = w.x - cam.x, y = w.y - cam.y;
+      if (!w.lit || !inV(x, y, 10)) continue;
+      g.fillStyle = w.shop ? 'rgba(255,210,130,0.5)' : 'rgba(255,190,100,0.42)'; g.fillRect(x, y, w.w, w.h);
+      if (w.shop) G.glow(g, x + w.w / 2, y + w.h + 2, 10, 'rgba(255,200,120,0.18)');
+    }
+    /* đèn ưu tiên xanh - đỏ của xe tuần tra hắt xuống mặt đường */
+    if (G.mode !== 'menu' && PLAYER.veh) {
+      const on = Math.floor(t * 4) % 2 === 0;
+      G.glow(g, PLAYER.x - cam.x, PLAYER.y - cam.y, 26, on ? 'rgba(255,40,40,0.35)' : 'rgba(40,110,255,0.35)');
     }
     g.globalCompositeOperation = 'source-over';
   },
 
   rain() {
     const g = G.g, cam = G.cam, dt = G.dtLast || 0.016;
-    g.fillStyle = 'rgba(40,60,90,0.12)';
+    g.fillStyle = 'rgba(40,60,90,0.14)';
     g.fillRect(0, 0, cam.w, cam.h);
-    g.fillStyle = 'rgba(170,195,235,0.55)';
+    g.fillStyle = 'rgba(170,195,235,0.5)';
     for (const d of G.drops) {
       d.y += d.s * dt; d.x -= d.s * 0.15 * dt;
       if (d.y > cam.h) { d.y = -6; d.x = Math.random() * (cam.w + 40); }

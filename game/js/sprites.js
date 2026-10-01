@@ -254,6 +254,73 @@ const SPR = {
     return cv;
   },
 
+  /* ---------------- XE MÁY ĐỖ TRÊN VỈA HÈ (nhìn từ trên, dựng dọc) ---------------- */
+  parked(g, pk) {
+    const rnd = U.rng(Math.floor(pk.x * 7 + pk.y * 13));
+    const col = ['#c1121f', '#222222', '#3a86ff', '#e9e9e9', '#6a4c93', '#2a9d8f', '#d4a017'][Math.floor(rnd() * 7)];
+    const x = pk.x, y = pk.y, up = pk.up;
+    const r = (a, b, w, h, c) => { g.fillStyle = c; g.fillRect(x + a, y + b, w, h); };
+    r(0.5, 1, 4, 12, 'rgba(0,0,0,0.25)');
+    r(1, 0, 2, 3, '#151515'); r(1, 10, 2, 3, '#151515');
+    r(0.5, 2.5, 3, 8, col); r(0.5, 2.5, 0.75, 8, SPR.sh(col, 0.35)); r(3, 2.5, 0.5, 8, SPR.sh(col, -0.35));
+    r(1, 4.5, 2, 4, '#232323');
+    r(-1, up ? 2.5 : 9.5, 6, 0.75, '#8a8a8a');
+    r(1.25, up ? 0 : 12.5, 1.5, 0.5, up ? '#fff3a0' : '#d62828');
+  },
+
+  /* ---------------- CÂY 2.5D (tán cao, có thể đung đưa) ---------------- */
+  _tree: {},
+  treeSprite(kind) {
+    if (SPR._tree[kind]) return SPR._tree[kind];
+    const [cv, g] = SPR.canvas(20, 28);
+    const r = SPR.rect(g);
+    if (kind === 'bamboo') {
+      for (let i = 0; i < 6; i++) { const x = 4 + i * 2.2; r(x, 6 + (i % 2) * 2, 0.75, 20 - (i % 2) * 2, i % 2 ? '#7e9a3a' : '#97b04a'); for (let y = 9; y < 26; y += 4) r(x - 0.25, y, 1.25, 0.5, '#5e7a2a'); }
+      const cl = [[2, 4], [7, 1], [12, 3], [4, 9], [11, 8], [7, 6], [14, 11], [1, 12]];
+      cl.forEach(([a, b], i) => { r(a, b, 6, 6, i % 2 ? '#3f7d2a' : '#4f8f2e'); r(a + 1, b - 1, 1, 3, '#6eaa3c'); r(a + 4, b, 1, 3, '#6eaa3c'); r(a - 0.5, b + 2.5, 2, 1, '#6eaa3c'); r(a + 2.5, b + 2.5, 1, 1, '#8cc657'); });
+    } else if (kind === 'palm') {
+      r(9, 9, 2, 19, '#7a5a35'); r(9, 9, 0.75, 19, '#5e4428'); for (let y = 11; y < 27; y += 2.5) r(9, y, 2, 0.5, '#5e4428');
+      const fr = [[-9, -1], [9, -1], [-6, -6], [6, -6], [0, -8], [-7, 4], [7, 4], [-3, 6], [3, 6]];
+      fr.forEach(([dx, dy]) => { for (let k = 0; k < 6; k++) { const t = k / 5; r(10 + dx * t - 0.9, 8 + dy * t - 0.75, 1.8, 1.5, k > 3 ? '#6abf55' : k > 1 ? '#3f9a3f' : '#2f7a2f'); } });
+      r(9, 7, 3, 3, '#8b5a2b'); r(9.5, 7.5, 1, 1, '#a9743a'); r(11, 9, 1.5, 1.5, '#6b8e23');
+    } else {
+      const street = kind === 'street';
+      r(8.5, 14, 3, 14, '#6b4a2b'); r(8.5, 14, 1, 14, '#4f361f'); r(10.5, 18, 0.75, 6, '#8a6239');
+      if (street) { r(5.5, 25.5, 9, 2.5, '#8d8478'); r(6.5, 26, 7, 1.5, '#5b4a3a'); }
+      const base = street ? ['#2b6a3a', '#3b8a48', '#58ad5a', '#7ccb6e'] : ['#2e6b2e', '#3f8a3a', '#5aa84c', '#7cc35e'];
+      r(1.5, 4, 17, 11, base[0]); r(3.5, 1.5, 13, 16, base[0]); r(2.5, 2.5, 15, 14, base[0]);
+      r(3, 3, 13, 9, base[1]); r(5, 1.5, 10, 12, base[1]);
+      r(5, 2, 5, 4, base[2]); r(11.5, 4, 4, 3, base[2]); r(3.5, 7, 3, 3, base[2]); r(9, 8, 3, 2.5, base[2]);
+      r(6, 2.5, 2, 1.25, base[3]); r(12, 4.5, 1.5, 1, base[3]); r(4, 7.5, 1, 1, base[3]);
+      r(3, 14, 14, 2.5, SPR.sh(base[0], -0.25)); r(5, 16, 10, 1, SPR.sh(base[0], -0.35));
+    }
+    SPR._tree[kind] = cv;
+    return cv;
+  },
+
+  /* ---------------- NGƯỜI ĐI BỘ TRÊN VỈA HÈ (nhìn 3/4) ---------------- */
+  _walker: {},
+  walker(style, frame, rain) {
+    const key = style.id + frame + (rain ? 'r' : '');
+    if (SPR._walker[key]) return SPR._walker[key];
+    const [cv, g] = SPR.canvas(8, 13);
+    const r = SPR.rect(g);
+    r(1.5, 11.5, 5, 1.5, 'rgba(0,0,0,0.28)');
+    const pants = style.pants, shoe = '#1a1a1a';
+    if (frame === 0) { r(2.25, 8.5, 1.5, 3, pants); r(4.25, 8.5, 1.5, 2.25, pants); r(2.25, 11.25, 1.5, 0.75, shoe); r(4.25, 10.5, 1.5, 0.75, shoe); }
+    else { r(2.25, 8.5, 1.5, 2.25, pants); r(4.25, 8.5, 1.5, 3, pants); r(2.25, 10.5, 1.5, 0.75, shoe); r(4.25, 11.25, 1.5, 0.75, shoe); }
+    r(1.5, 4.5, 5, 4.5, style.shirt); r(1.5, 4.5, 5, 0.5, SPR.sh(style.shirt, 0.25)); r(1.5, 8.5, 5, 0.5, SPR.sh(style.shirt, -0.3));
+    r(0.75, 5, 1, 3, style.shirt); r(6.25, 5, 1, 3, style.shirt); r(0.75, 7.75, 1, 0.75, '#e0ac69'); r(6.25, 7.75, 1, 0.75, '#e0ac69');
+    if (style.bag) r(5.5, 5, 1.75, 3, style.bag);
+    r(2.25, 1.5, 3.5, 3.25, '#e8b98a'); r(2.75, 2.75, 0.5, 0.5, '#111'); r(4.75, 2.75, 0.5, 0.5, '#111');
+    if (style.hat === 'non') { r(0.5, 0.75, 7, 1.25, '#e9d8a6'); r(2, -0.25, 4, 1.25, '#e9d8a6'); r(3.5, -0.75, 1, 0.75, '#d4c08a'); }
+    else if (style.hat === 'helmet') { r(2, 0.5, 4, 1.75, '#ffd23f'); r(1.75, 2, 4.5, 0.5, '#d4a017'); }
+    else { r(2.25, 1, 3.5, 1.25, style.hair || '#2b1d14'); if (style.long) r(2, 1.5, 0.75, 3.5, style.hair || '#2b1d14'), r(5.25, 1.5, 0.75, 3.5, style.hair || '#2b1d14'); }
+    if (rain) { r(0.25, 3.5, 7.5, 6.5, 'rgba(120,180,255,0.45)'); r(0.25, 3.5, 7.5, 0.5, 'rgba(200,230,255,0.6)'); }
+    SPR._walker[key] = cv;
+    return cv;
+  },
+
   /* ---------------- CÂY ---------------- */
   tree(g, x, y, kind) {
     const r = (a, b, w, h, c) => { g.fillStyle = c; g.fillRect(x + a, y + b, w, h); };

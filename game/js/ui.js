@@ -302,6 +302,7 @@ const UI = {
   /* ---------------- HUD ---------------- */
   hud(on) {
     UI.$('hud').classList.toggle('hidden', !on);
+    if (!on) UI.$('minimap').classList.add('hidden');
     UI.$('touch').classList.toggle('hidden', !on || !G.touch);
     if (!on) UI.banner(null);
     if (!on) { UI.$('card').classList.add('hidden'); UI.$('hint').classList.add('hidden'); UI.cpPanel(null); }
@@ -378,6 +379,39 @@ const UI = {
       UI.$('cpPass').onclick = () => { AUDIO.init(); G.pass = true; };
     }
     UI.$('cpTimerBar').style.width = Math.round(frac * 100) + '%';
+  },
+
+  /* ---------------- BẢN ĐỒ NHỎ ---------------- */
+  initMinimap(m, show) {
+    const c = UI.$('minimap');
+    UI._mini = null;
+    if (window.innerHeight < 500) show = false;   // màn hình thấp (điện thoại xoay ngang): ẩn bản đồ nhỏ
+    c.classList.toggle('hidden', !show);
+    UI.$('card').style.top = '';
+    if (!show) return;
+    const cssW = window.innerWidth < 700 ? 120 : 170;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    c.style.width = cssW + 'px'; c.style.height = Math.round(cssW * m.ph / m.pw) + 'px';
+    c.width = Math.round(cssW * dpr); c.height = Math.round(cssW * dpr * m.ph / m.pw);
+    const bg = document.createElement('canvas'); bg.width = c.width; bg.height = c.height;
+    const bgc = bg.getContext('2d'); bgc.imageSmoothingEnabled = true;
+    bgc.drawImage(m.bg, 0, 0, bg.width, bg.height); bgc.drawImage(m.fg, 0, 0, bg.width, bg.height);
+    UI._mini = { c: c, g: c.getContext('2d'), bg: bg, k: c.width / m.pw };
+    const r = c.getBoundingClientRect();
+    UI.$('card').style.top = (r.bottom + 8) + 'px';
+  },
+  drawMinimap() {
+    const M = UI._mini;
+    if (!M || G.mode === 'menu') return;
+    const g = M.g, k = M.k, cam = G.cam;
+    g.drawImage(M.bg, 0, 0);
+    g.strokeStyle = 'rgba(255,255,255,0.85)'; g.lineWidth = 1;
+    g.strokeRect(cam.x * k, cam.y * k, cam.w * k, cam.h * k);
+    const blink = Math.floor(performance.now() / 300) % 2 === 0;
+    const ep = EVENTS.pos();
+    if (ep && blink) { g.fillStyle = '#ff3b30'; g.beginPath(); g.arc(ep.x * k, ep.y * k, 3.5, 0, Math.PI * 2); g.fill(); }
+    g.fillStyle = '#2d7dff'; g.strokeStyle = '#ffffff';
+    g.beginPath(); g.arc(PLAYER.x * k, PLAYER.y * k, 3, 0, Math.PI * 2); g.fill(); g.stroke();
   },
 
   banner(html) {

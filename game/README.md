@@ -24,8 +24,17 @@ Tiến trình (điểm kỷ lục, số sao, XP, cấp bậc) được lưu tron
 
 Ở hai chế độ tuần tra: xe có dấu hiệu vi phạm ở gần hiện biểu tượng **!** vàng, thẻ quan sát ghi rõ "Dấu hiệu". Ra hiệu lệnh dừng xe bằng còi hụ và loa.
 
+### Đồ họa
+- Đồ họa pixel vẽ ở độ phân giải gấp đôi, hiển thị theo bội số nguyên của điểm ảnh màn hình nên luôn sắc nét.
+- **Thu phóng:** nút **− / +** ở góc dưới bên phải, con lăn chuột, hoặc phím **+ / −**. Mặc định nhìn rộng; có **bản đồ nhỏ** ở góc trên bên phải (vị trí tổ công tác, khung nhìn, hiện trường tình huống).
+- **Nhà 2.5D** có chiều cao, mặt tiền nhiều tầng, ban công, điều hòa, cửa hàng có biển hiệu; cửa sổ sáng đèn ban đêm; bóng đổ xuống đất.
+- **Hoạt cảnh:** người đi bộ trên vỉa hè (nón lá, công nhân đội mũ, áo mưa khi trời mưa), cây đung đưa, nước lăn tăn, khói xe tải và ống khói nhà máy, bụi đường đất, mưa bắn tóe, chim bay.
+- **Ánh sáng:** quầng đèn đường vàng ấm, đèn pha, đèn phanh, đèn ưu tiên xanh – đỏ hắt xuống mặt đường, mặt đường ướt phản chiếu khi mưa, hoàng hôn nhuộm cam.
+- **Chi tiết đường phố:** cột điện, dây điện, cây xanh vỉa hè có ô bảo vệ gốc, xe máy đỗ, nắp cống, mũi tên chỉ hướng trên làn, gờ giảm tốc, biển cấm đỗ, biển người đi bộ, biển trường học.
+
 ## 3. Điều khiển
 
+- **Thu phóng:** `+` / `−`, con lăn chuột, hoặc nút −/+ trên màn hình.
 - **Máy tính:** mũi tên hoặc `W A S D` để di chuyển (chế độ tuần tra) · `SPACE` hoặc `E` để ra hiệu lệnh dừng xe hoặc xử lý tai nạn · `C` để cho qua (chế độ chốt) · `ESC` hoặc `P` để tạm dừng · phím `1–3` để chọn nhanh đáp án.
 - **Điện thoại:** chế độ chốt bấm nút **DỪNG XE / CHO QUA** trên bảng quan sát; chế độ tuần tra dùng cần điều khiển bên trái và nút **DỪNG XE** bên phải; nút `II` để tạm dừng.
 
@@ -98,6 +107,7 @@ game/
 ├── js/ui.js              # menu, hộp thoại, tổng kết, sổ tay pháp luật
 ├── js/sprites.js         # đồ họa pixel chi tiết (vẽ ở độ phân giải gấp đôi)
 ├── js/events.js          # tình huống đặc biệt + nhiệm vụ trong ca
+├── js/life.js            # người đi bộ, cây đung đưa, khói, mưa, nước, chim
 ├── js/main.js            # vòng lặp game, điều khiển, camera, ánh sáng đêm, mưa
 ├── sw.js, manifest.webmanifest, icon.svg   # chạy offline dạng ứng dụng (PWA)
 ```

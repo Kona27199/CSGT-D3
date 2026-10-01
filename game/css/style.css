@@ -248,3 +248,12 @@ body.has-touch #evBanner { top: 48px; }
   #missions { font-size: 10px; max-width: 190px; top: 58px; }
   #evBanner { font-size: 12px; }
 }
+
+/* ---------- bản đồ nhỏ & thu phóng ---------- */
+#minimap { position: absolute; right: 10px; top: 72px; box-shadow: 0 0 0 2px var(--line), 0 0 0 4px #2c4a6e; image-rendering: auto; pointer-events: none; background: #0e1319; }
+#zoomBox { position: fixed; right: 10px; bottom: 12px; display: flex; align-items: center; gap: 4px; pointer-events: auto; background: rgba(10,20,32,.82); padding: 3px; box-shadow: 0 0 0 2px var(--line); }
+#zoomBox button { width: 30px; height: 28px; border: 0; background: var(--panel2); color: #fff; font: 800 18px var(--font); cursor: pointer; }
+#zoomBox button:hover { background: #24466b; }
+#zoomBox span { color: var(--gold); font: 700 12px var(--font); min-width: 22px; text-align: center; }
+body.has-touch #zoomBox { bottom: 156px; left: 22px; right: auto; }
+body.has-touch #minimap { top: 64px; }
