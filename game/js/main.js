@@ -11,7 +11,17 @@ const G = {
   tally: null,
   keys: {}, stick: { x: 0, y: 0 }, act: false, pass: false, touch: false,
   cp: false, cpCur: null, cpTimer: 0, cpLane: null, cpHold: 0, cpShift: null,
-  drops: [], last: 0,
+  drops: [], last: 0, gfx: 'pixel',
+
+  /* đồ họa: '3d' (low-poly, cần WebGL) hoặc 'pixel' */
+  is3d() { return G.gfx === '3d' && R3.ok; },
+  setGfx(mode) {
+    if (mode === '3d' && !R3.init(UI.$('game3d'))) mode = 'pixel';
+    G.gfx = mode;
+    SAVE.data.gfx = mode; SAVE.store();
+    document.body.classList.toggle('gfx3d', mode === '3d');
+    if (G.cv) G.resize();
+  },
 
   init() {
     SAVE.load();
@@ -21,7 +31,7 @@ const G = {
     G.dg = G.dark.getContext('2d');
     G.touch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
     if (G.touch) document.body.classList.add('has-touch');
-    G.resize();
+    G.setGfx(SAVE.data.gfx || '3d');
     window.addEventListener('resize', G.resize);
     G.bindInput();
     UI.title();
@@ -49,10 +59,12 @@ const G = {
     const need = Math.ceil(G.view.w * G.view.h / 260);
     while (G.drops.length < need) G.drops.push({ x: Math.random() * G.view.w, y: Math.random() * G.view.h, s: 180 + Math.random() * 120 });
     G.drops.length = need;
-    const zl = UI.$('zoomLbl'); if (zl) zl.textContent = 'x' + G.k;
+    const zl = UI.$('zoomLbl'); if (zl) zl.textContent = G.is3d() ? 'x' + (R3.DIST.length - R3.zoomIdx) : 'x' + G.k;
+    if (G.is3d()) R3.resize();
   },
 
   zoom(d) {
+    if (G.is3d()) { R3.zoom(d); return; }
     const step = (SAVE.data.zoomStep || 0) + d;
     if (G.kBase + step < 1 || step > 3) return;
     SAVE.data.zoomStep = step; SAVE.store();
@@ -84,6 +96,7 @@ const G = {
       if ((k === 'escape' || k === 'p') && G.mode === 'play' && !UI.isModal()) { G.pause('menu'); UI.pauseMenu(); }
       if ((k === '+' || k === '=') && !UI.isModal()) G.zoom(1);
       if ((k === '-' || k === '_') && !UI.isModal()) G.zoom(-1);
+      if ((k === 'q' || k === 'r') && G.is3d() && !UI.isModal()) R3.rotate(k === 'q' ? 1 : -1);
       if (k.startsWith('arrow')) e.preventDefault();
     });
     window.addEventListener('keyup', e => { G.keys[e.key.toLowerCase()] = false; });
@@ -114,6 +127,8 @@ const G = {
     G.cv.addEventListener('wheel', e => { e.preventDefault(); if (Math.abs(e.deltaY) > 2) G.zoom(e.deltaY < 0 ? 1 : -1); }, { passive: false });
     UI.$('zoomIn').addEventListener('click', () => G.zoom(1));
     UI.$('zoomOut').addEventListener('click', () => G.zoom(-1));
+    UI.$('rotL').addEventListener('click', () => { if (G.is3d()) R3.rotate(1); });
+    UI.$('rotR').addEventListener('click', () => { if (G.is3d()) R3.rotate(-1); });
     UI.$('btnPause').addEventListener('pointerdown', e => { e.preventDefault(); if (G.mode === 'play' && !UI.isModal()) { G.pause('menu'); UI.pauseMenu(); } });
   },
 
@@ -326,10 +341,11 @@ const G = {
   /* ---------------- CẬP NHẬT ---------------- */
   update(dt) {
     const m = MAP.cur;
+    const d3 = G.is3d();
     if (G.mode === 'menu') {
       G.attractT += dt;
-      G.cam.x = U.clamp(m.pw / 2 - G.cam.w / 2 + Math.sin(G.attractT * 0.08) * 280, 0, m.pw - G.cam.w);
-      G.cam.y = U.clamp(17 * TILE - G.cam.h / 2 + Math.sin(G.attractT * 0.05) * 90, 0, Math.max(0, m.ph - G.cam.h));
+      if (!d3) G.cam.x = U.clamp(m.pw / 2 - G.cam.w / 2 + Math.sin(G.attractT * 0.08) * 280, 0, m.pw - G.cam.w);
+      if (!d3) G.cam.y = U.clamp(17 * TILE - G.cam.h / 2 + Math.sin(G.attractT * 0.05) * 90, 0, Math.max(0, m.ph - G.cam.h));
       TRAFFIC.updateLights(m, dt); TRAFFIC.spawnAll(m, G.shift, dt); TRAFFIC.update(m, dt, G.cam, () => {});
       LIFE.update(dt, G.cam);
       return;
@@ -353,8 +369,8 @@ const G = {
     });
     if (G.cp) {
       const m2 = MAP.cur;
-      G.cam.x = Math.round(U.clamp(PLAYER.x - G.cam.w * 0.3, 0, Math.max(0, m2.pw - G.cam.w)));
-      G.cam.y = Math.round(U.clamp(PLAYER.y - G.cam.h * 0.5, 0, Math.max(0, m2.ph - G.cam.h)));
+      if (!d3) G.cam.x = Math.round(U.clamp(PLAYER.x - G.cam.w * 0.3, 0, Math.max(0, m2.pw - G.cam.w)));
+      if (!d3) G.cam.y = Math.round(U.clamp(PLAYER.y - G.cam.h * 0.5, 0, Math.max(0, m2.ph - G.cam.h)));
       if (G.pendingStop && G.pendingStop.state === 'stopped' && G.pendingStop.t - G.pendingStop.stoppedAt > 0.3) {
         const v = G.pendingStop; G.pendingStop = null;
         INSPECT.begin(v);
@@ -363,10 +379,11 @@ const G = {
       G.updateCp(dt);
       return;
     }
-    const inp = G.input();
+    let inp = G.input();
+    if (d3) inp = R3.inputToWorld(inp.x, inp.y);
     PLAYER.update(dt, inp.x, inp.y);
-    G.cam.x = Math.round(U.clamp(PLAYER.x - G.cam.w / 2, 0, Math.max(0, m.pw - G.cam.w)) * RS) / RS;
-    G.cam.y = Math.round(U.clamp(PLAYER.y - G.cam.h / 2, 0, Math.max(0, m.ph - G.cam.h)) * RS) / RS;
+    if (!d3) G.cam.x = Math.round(U.clamp(PLAYER.x - G.cam.w / 2, 0, Math.max(0, m.pw - G.cam.w)) * RS) / RS;
+    if (!d3) G.cam.y = Math.round(U.clamp(PLAYER.y - G.cam.h / 2, 0, Math.max(0, m.ph - G.cam.h)) * RS) / RS;
     /* khóa mục tiêu */
     let best = null, bd = 72;
     for (const v of TRAFFIC.list) {
@@ -413,6 +430,14 @@ const G = {
   render() {
     const g = G.g, m = MAP.cur, cam = G.cam;
     if (!m) return;
+    if (G.is3d()) {
+      if (R3.m !== m) R3.build(m, { cp: G.mode !== 'menu' && G.cp });
+      R3.render(G.dtLast || 0.016);
+      G.overlay3d();
+      G.miniT = (G.miniT || 0) + 1;
+      if (G.miniT % 4 === 0) UI.drawMinimap();
+      return;
+    }
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.fillStyle = '#0e1319';
     g.fillRect(0, 0, G.cv.width, G.cv.height);
@@ -461,6 +486,90 @@ const G = {
     if (G.mode !== 'menu') EVENTS.drawArrow(g, cam);
     G.miniT = (G.miniT || 0) + 1;
     if (G.miniT % 4 === 0) UI.drawMinimap();
+  },
+
+  /* lớp phủ 2D trên cảnh 3D: khung khóa mục tiêu, dấu "!", hiện trường, mũi tên chỉ hướng, mưa */
+  overlay3d() {
+    const g = G.g, W = G.cv.width, H = G.cv.height, t = performance.now() / 1000;
+    const u = Math.max(1, G.cv.width / Math.max(1, window.innerWidth));   // điểm ảnh thiết bị / điểm CSS
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, W, H);
+    if (G.mode === 'menu' || !G.shift) { if (G.shift && G.shift.weather === 'rain') G.rain3d(u); return; }
+    const mark = (x, y, bg, fg, ch) => {
+      const s = 9 * u;
+      g.fillStyle = 'rgba(0,0,0,0.85)'; g.fillRect(x - s - u, y - 2 * s - u, 2 * s + 2 * u, 2 * s + 2 * u);
+      g.fillStyle = bg; g.fillRect(x - s, y - 2 * s, 2 * s, 2 * s);
+      g.fillStyle = fg; g.font = 'bold ' + Math.round(15 * u) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(ch, x, y - s + u);
+    };
+    const vh = v => v.kind === 'moto' ? 13 : v.kind === 'car' || v.kind === 'amb' ? 10 : 15;
+    const blink = Math.floor(t * 3.3) % 2 === 0;
+    for (const v of TRAFFIC.list) {
+      const p = R3.toScreen(v.x, vh(v) + 4, v.y);
+      if (!p.vis) continue;
+      if (v.redFlash > 0 && Math.floor(v.redFlash * 4) % 2 === 0) { mark(p.x, p.y, '#ff3b30', '#ffffff', '!'); continue; }
+      if ((v.state === 'pullover' || v.state === 'stopped') && Math.floor(v.t * 3) % 2 === 0) {
+        g.fillStyle = '#ffb703'; g.beginPath(); g.arc(p.x, p.y - 4 * u, 4 * u, 0, Math.PI * 2); g.fill();
+      }
+      if (G.mode === 'play' && !G.cp && blink && v.state === 'drive' && !v.stopped && !v.special &&
+          Math.hypot(v.x - PLAYER.x, v.y - PLAYER.y) <= 110 && TRAFFIC.signs(v).length) mark(p.x, p.y, '#ffd23f', '#c0392b', '!');
+    }
+    /* khung khóa mục tiêu: bao quanh hình chiếu của khối hộp xe */
+    const tv = G.mode === 'play' ? G.target : null;
+    if (tv) {
+      const half = Math.max(tv.len, tv.wid) / 2 + 2, h = vh(tv);
+      let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+      for (const [dx, dz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) for (const y of [0, h]) {
+        const p = R3.toScreen(tv.x + dx * half, y, tv.y + dz * half);
+        x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y);
+      }
+      const c = Math.min(14 * u, (x1 - x0) / 3), lw = 3 * u;
+      g.strokeStyle = '#ffd23f'; g.lineWidth = lw; g.beginPath();
+      for (const [ax, ay, sx, sy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]]) {
+        g.moveTo(ax + sx * c, ay); g.lineTo(ax, ay); g.lineTo(ax, ay + sy * c);
+      }
+      g.stroke();
+    }
+    /* hiện trường tình huống */
+    const ep = !G.cp ? EVENTS.pos() : null;
+    if (ep) {
+      const rr = 12 + (t * 14) % 10;
+      g.strokeStyle = 'rgba(255,59,48,' + (0.95 - (rr - 12) / 11).toFixed(2) + ')'; g.lineWidth = 2.5 * u;
+      g.beginPath();
+      for (let i = 0; i <= 24; i++) {
+        const a = i / 24 * Math.PI * 2, p = R3.toScreen(ep.x + Math.cos(a) * rr, 0.5, ep.y + Math.sin(a) * rr);
+        if (i) g.lineTo(p.x, p.y); else g.moveTo(p.x, p.y);
+      }
+      g.stroke();
+      const p = R3.toScreen(ep.x, 22, ep.y);
+      if (p.vis && Math.floor(t * 3) % 2 === 0) mark(p.x, p.y, '#ff3b30', '#ffffff', '!');
+      /* mũi tên ở mép màn hình khi hiện trường nằm ngoài tầm nhìn */
+      const q = R3.toScreen(ep.x, 0, ep.y);
+      if (G.mode === 'play' && !q.vis) {
+        const a = R3.yawTarget + R3.spin, wx = ep.x - R3.target.x, wz = ep.y - R3.target.z;
+        const sx = wx * Math.cos(a) - wz * Math.sin(a), sy = wx * Math.sin(a) + wz * Math.cos(a);
+        const ang = Math.atan2(sy, sx), cx = W / 2, cy = H / 2;
+        const k = Math.min((W / 2 - 30 * u) / Math.max(1e-6, Math.abs(Math.cos(ang))), (H / 2 - 40 * u) / Math.max(1e-6, Math.abs(Math.sin(ang))));
+        g.save(); g.translate(cx + Math.cos(ang) * k, cy + Math.sin(ang) * k); g.rotate(ang);
+        g.fillStyle = Math.floor(t * 4) % 2 ? '#ff3b30' : '#ffffff'; g.strokeStyle = '#000'; g.lineWidth = 2 * u;
+        g.beginPath(); g.moveTo(24 * u, 0); g.lineTo(-10 * u, -18 * u); g.lineTo(-3 * u, 0); g.lineTo(-10 * u, 18 * u); g.closePath(); g.fill(); g.stroke();
+        g.restore();
+      }
+    }
+    if (G.shift.weather === 'rain') G.rain3d(u);
+  },
+
+  rain3d(u) {
+    const g = G.g, W = G.cv.width, H = G.cv.height, dt = G.dtLast || 0.016, k = G.scale;
+    g.strokeStyle = 'rgba(190,210,240,0.55)'; g.lineWidth = Math.max(1, u);
+    g.beginPath();
+    for (const d of G.drops) {
+      d.y += d.s * dt; d.x -= d.s * 0.15 * dt;
+      if (d.y > G.view.h) { d.y = -6; d.x = Math.random() * (G.view.w + 40); }
+      if (d.x < -4) d.x = G.view.w + 4;
+      g.moveTo(d.x * k, d.y * k); g.lineTo(d.x * k - 0.6 * k, d.y * k + 4 * k);
+    }
+    g.stroke();
   },
 
   drawCones(g, m, cam) {
@@ -585,7 +694,7 @@ const G = {
   },
 
   frame(now) {
-    const dt = Math.min(0.05, ((now - G.last) || 16) / 1000);
+    const dt = U.clamp(((now - G.last) || 16) / 1000, 0, 0.05);
     G.last = now;
     G.dtLast = dt;
     try {

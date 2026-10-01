@@ -8,6 +8,9 @@
 html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--font); -webkit-tap-highlight-color: transparent; }
 #wrap { position: fixed; inset: 0; overflow: hidden; }
 #game { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; display: block; background: #111; }
+#game3d { position: absolute; inset: 0; width: 100%; height: 100%; display: block; background: #a9d8f5; }
+body.gfx3d #game { background: transparent; image-rendering: auto; }
+body:not(.gfx3d) #game3d, body:not(.gfx3d) .rot3d { display: none; }
 .hidden { display: none !important; }
 
 /* ---------- nút pixel ---------- */

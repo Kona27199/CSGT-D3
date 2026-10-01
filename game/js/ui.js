@@ -121,6 +121,7 @@ const UI = {
       '<button class="btn" data-a="book">📘 Sổ tay pháp luật</button>' +
       '<button class="btn" data-a="help">❔ Hướng dẫn chơi</button>' +
       '<button class="btn" data-a="sound">' + (SAVE.data.sound ? '🔊 Âm thanh: Bật' : '🔇 Âm thanh: Tắt') + '</button>' +
+      UI.gfxButtons() +
       '</div>' +
       '<p class="tip">💡 ' + U.esc(DATA.TIPS[Math.floor(Math.random() * DATA.TIPS.length)]) + '</p>' +
       '</div>');
@@ -134,6 +135,7 @@ const UI = {
       else if (a === 'book') UI.handbook(UI.title);
       else if (a === 'help') UI.help(UI.title);
       else if (a === 'sound') { SAVE.data.sound = !SAVE.data.sound; SAVE.store(); UI.title(); }
+      else if (UI.gfxAction(a)) UI.title();
     });
     const first = s.querySelector('.btn.primary'); if (first) first.focus();
   },
@@ -211,7 +213,8 @@ const UI = {
       '<div class="panel wide"><h2>❔ Hướng dẫn chơi</h2>' +
       '<h4>Điều khiển</h4><ul>' +
       '<li><b>Máy tính:</b> Mũi tên / W A S D để điều khiển xe tuần tra · <b>SPACE</b> hoặc <b>E</b>: ra hiệu lệnh dừng xe / xử lý tai nạn · <b>ESC</b> hoặc <b>P</b>: tạm dừng · Phím số <b>1–3</b> để chọn nhanh đáp án.</li>' +
-      '<li><b>Điện thoại:</b> kéo cần điều khiển bên trái để lái xe tuần tra, nút <b>DỪNG XE</b> bên phải. Chế độ chốt: bấm nút trên bảng quan sát.</li></ul>' +
+      '<li><b>Điện thoại:</b> kéo cần điều khiển bên trái để lái xe tuần tra, nút <b>DỪNG XE</b> bên phải. Chế độ chốt: bấm nút trên bảng quan sát.</li>' +
+      '<li><b>Camera:</b> nút <b>− / +</b> (hoặc phím + / −, con lăn chuột) để thu phóng; đồ họa 3D xoay góc nhìn 90° bằng nút <b>⟲ / ⟳</b> hoặc phím <b>Q / R</b>. Đổi đồ họa 3D / Pixel và chất lượng ở màn hình chính hoặc menu tạm dừng.</li></ul>' +
       '<h4>Chế độ Chốt kiểm soát</h4><ul>' +
       '<li>Từng phương tiện vào chốt, dừng trước mặt và hiện phóng to ở bảng quan sát. Quan sát mũ bảo hiểm, số người, điện thoại, tốc độ, tin báo.</li>' +
       '<li><b>DỪNG XE</b> (Space) nếu có dấu hiệu vi phạm, <b>CHO QUA</b> (C) nếu không. Cho qua đúng: <b>+5</b> · Bỏ lọt: <b>−10</b>.</li></ul>' +
@@ -284,6 +287,28 @@ const UI = {
     if (n) n.onclick = () => { AUDIO.click(); G.start(r.nextShift, Date.now() & 0xffffffff, r.mode); };
   },
 
+  /* nút cài đặt đồ họa (dùng chung cho màn hình chính và menu tạm dừng) */
+  gfxButtons() {
+    const Q = { low: 'Thấp', med: 'Vừa', high: 'Cao' };
+    let h = '<button class="btn" data-a="gfx">🎨 Đồ họa: ' + (G.is3d() ? '3D low-poly' : 'Pixel 2D') + '</button>';
+    if (G.is3d()) h += '<button class="btn" data-a="q3d">⚙ Chất lượng 3D: ' + Q[SAVE.data.q3d || 'med'] + '</button>';
+    return h;
+  },
+  gfxAction(a) {
+    if (a === 'gfx') {
+      const want = G.is3d() ? 'pixel' : '3d';
+      G.setGfx(want);
+      if (want === '3d' && !G.is3d()) UI.toast('Thiết bị không hỗ trợ WebGL – giữ đồ họa Pixel', 'bad');
+      return true;
+    }
+    if (a === 'q3d') {
+      const order = ['low', 'med', 'high'], cur = order.indexOf(SAVE.data.q3d || 'med');
+      R3.setQuality(order[(cur + 1) % 3]);
+      return true;
+    }
+    return false;
+  },
+
   pauseMenu() {
     const box = UI.modal('⏸ Tạm dừng', '');
     const body = box.querySelector('.m-body');
@@ -291,11 +316,13 @@ const UI = {
       '<button class="btn primary" data-a="resume">▶ Tiếp tục</button>' +
       '<button class="btn" data-a="book">📘 Sổ tay pháp luật</button>' +
       '<button class="btn" data-a="sound">' + (SAVE.data.sound ? '🔊 Âm thanh: Bật' : '🔇 Âm thanh: Tắt') + '</button>' +
+      UI.gfxButtons() +
       '<button class="btn" data-a="quit">☰ Kết thúc ca, về menu</button></div>';
     body.querySelector('[data-a=resume]').onclick = () => { UI.closeModal(); G.resume(); };
     body.querySelector('[data-a=sound]').onclick = () => { SAVE.data.sound = !SAVE.data.sound; SAVE.store(); UI.pauseMenu(); };
     body.querySelector('[data-a=book]').onclick = () => { UI.closeModal(); UI.handbook(() => { UI.hideScreen(); UI.pauseMenu(); }); };
     body.querySelector('[data-a=quit]').onclick = () => { UI.closeModal(); UI.title(); };
+    body.querySelectorAll('[data-a=gfx],[data-a=q3d]').forEach(b => b.onclick = () => { AUDIO.click(); UI.gfxAction(b.dataset.a); UI.pauseMenu(); });
     body.querySelector('[data-a=resume]').focus();
   },
 
@@ -406,7 +433,9 @@ const UI = {
     const g = M.g, k = M.k, cam = G.cam;
     g.drawImage(M.bg, 0, 0);
     g.strokeStyle = 'rgba(255,255,255,0.85)'; g.lineWidth = 1;
-    g.strokeRect(cam.x * k, cam.y * k, cam.w * k, cam.h * k);
+    if (G.is3d() && R3.quad) {
+      g.beginPath(); R3.quad.forEach((q, i) => i ? g.lineTo(q.x * k, q.y * k) : g.moveTo(q.x * k, q.y * k)); g.closePath(); g.stroke();
+    } else g.strokeRect(cam.x * k, cam.y * k, cam.w * k, cam.h * k);
     const blink = Math.floor(performance.now() / 300) % 2 === 0;
     const ep = EVENTS.pos();
     if (ep && blink) { g.fillStyle = '#ff3b30'; g.beginPath(); g.arc(ep.x * k, ep.y * k, 3.5, 0, Math.PI * 2); g.fill(); }

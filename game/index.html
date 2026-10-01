@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0d1b2a">
-<meta name="description" content="Game pixel mô phỏng hoạt động tuần tra, kiểm soát của Cảnh sát giao thông. Chơi offline.">
+<meta name="description" content="Game pixel / 3D low-poly mô phỏng hoạt động tuần tra, kiểm soát của Cảnh sát giao thông. Chơi offline.">
 <title>CSGT Ca Tuần Tra</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -12,6 +12,7 @@
 </head>
 <body>
 <div id="wrap">
+  <canvas id="game3d"></canvas>
   <canvas id="game" width="384" height="216"></canvas>
 
   <div id="hud" class="hidden">
@@ -20,7 +21,7 @@
     <div id="timewrap"><div id="timebar"></div></div>
     <div id="missions"></div>
     <canvas id="minimap" class="hidden"></canvas>
-    <div id="zoomBox"><button id="zoomOut" aria-label="Thu nhỏ">−</button><span id="zoomLbl">x2</span><button id="zoomIn" aria-label="Phóng to">+</button></div>
+    <div id="zoomBox"><button id="zoomOut" aria-label="Thu nhỏ">−</button><span id="zoomLbl">x2</span><button id="zoomIn" aria-label="Phóng to">+</button><button id="rotL" class="rot3d" aria-label="Xoay trái">⟲</button><button id="rotR" class="rot3d" aria-label="Xoay phải">⟳</button></div>
     <div id="evBanner" class="hidden"></div>
   </div>
 
@@ -63,6 +64,8 @@
 <script src="js/stop.js"></script>
 <script src="js/events.js"></script>
 <script src="js/life.js"></script>
+<script src="vendor/three.min.js"></script>
+<script src="js/r3d.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-# CSGT · Ca Tuần Tra (game pixel, chơi offline)
+# CSGT · Ca Tuần Tra (game 3D low-poly / pixel, chơi offline)
 
 Game mô phỏng hoạt động tuần tra, kiểm soát của Cảnh sát giao thông, định hướng **giáo dục kết hợp giải trí**.
 Người chơi vào vai một chiến sĩ CSGT mới ra trường, qua từng ca trực để phát hiện vi phạm, dừng xe đúng quy trình,
@@ -11,7 +11,8 @@ xác định đúng lỗi và mức phạt, ứng xử chuẩn mực và giữ l
 | **Máy tính** | Mở trực tiếp file `game/index.html` bằng Chrome, Edge hoặc Firefox. Không cần mạng, không cần cài đặt. |
 | **Điện thoại** | Chép thư mục `game/` vào máy rồi mở `index.html` bằng trình duyệt. Hoặc đưa lên một máy chủ web (GitHub Pages…), mở một lần, chọn *Thêm vào màn hình chính*. Service worker sẽ lưu toàn bộ game vào máy để chơi offline. |
 
-Game không tải bất kỳ tài nguyên nào từ Internet: đồ họa pixel và âm thanh 8-bit đều được tạo bằng code.
+Game không tải bất kỳ tài nguyên nào từ Internet: mô hình 3D, đồ họa pixel và âm thanh 8-bit đều được tạo bằng code.
+Thư viện 3D Three.js (r149, giấy phép MIT) được đóng kèm trong `vendor/three.min.js`.
 Tiến trình (điểm kỷ lục, số sao, XP, cấp bậc) được lưu trong trình duyệt (localStorage).
 
 ### Cài trên điện thoại Android (file APK)
@@ -30,7 +31,15 @@ Tiến trình (điểm kỷ lục, số sao, XP, cấp bậc) được lưu tron
 
 Ở hai chế độ tuần tra: xe có dấu hiệu vi phạm ở gần hiện biểu tượng **!** vàng, thẻ quan sát ghi rõ "Dấu hiệu". Ra hiệu lệnh dừng xe bằng còi hụ và loa.
 
-### Đồ họa
+### Đồ họa 3D low-poly (mặc định) – BẢN THỬ
+- Mọi thứ dựng bằng khối 3D đơn giản, tô màu phẳng: nhà phố nhiều tầng có mái hiên sọc, biển hiệu, ban công, bồn nước; nhà máy, ký túc xá, nhà mái ngói; cây tán khối, tre, dừa; cột điện, dây điện, đèn đường, đèn tín hiệu, biển báo; xe máy có người lái (thấy rõ đội mũ hay không, chở mấy người, cầm điện thoại), ô tô, xe khách, xe tải (thấy hàng chở vượt thành thùng, quá chiều cao).
+- **Camera nhìn nghiêng cố định**, bám theo tổ công tác; **xoay 90°** bằng nút **⟲ / ⟳** hoặc phím **Q / R** (hướng phím điều khiển tự xoay theo); **thu phóng 5 mức** bằng − / +.
+- Nhà/cây nằm giữa camera và người chơi được **tự đục lỗ** để luôn nhìn thấy xe tuần tra.
+- Ánh sáng theo giờ: ban ngày có bóng đổ, hoàng hôn nhuộm cam, ban đêm cửa sổ sáng đèn, quầng đèn đường, đèn pha; mưa có màn mưa và sương mù.
+- **Đổi đồ họa:** nút **🎨 Đồ họa: 3D / Pixel** ở màn hình chính hoặc menu tạm dừng (đổi ngay, không mất tiến trình). Thiết bị không hỗ trợ WebGL tự dùng Pixel.
+- **⚙ Chất lượng 3D: Thấp / Vừa / Cao** – Thấp: tắt bóng đổ, độ phân giải 1x (máy yếu); Cao: bóng đổ nét, độ phân giải 2x. Khử răng cưa áp dụng khi mở lại game.
+
+### Đồ họa Pixel (tùy chọn)
 - Đồ họa pixel vẽ ở độ phân giải gấp đôi, hiển thị theo bội số nguyên của điểm ảnh màn hình nên luôn sắc nét.
 - **Thu phóng:** nút **− / +** ở góc dưới bên phải, con lăn chuột, hoặc phím **+ / −**. Mặc định nhìn rộng; có **bản đồ nhỏ** ở góc trên bên phải (vị trí tổ công tác, khung nhìn, hiện trường tình huống).
 - **Nhà 2.5D** có chiều cao, mặt tiền nhiều tầng, ban công, điều hòa, cửa hàng có biển hiệu; cửa sổ sáng đèn ban đêm; bóng đổ xuống đất.
@@ -40,7 +49,7 @@ Tiến trình (điểm kỷ lục, số sao, XP, cấp bậc) được lưu tron
 
 ## 3. Điều khiển
 
-- **Thu phóng:** `+` / `−`, con lăn chuột, hoặc nút −/+ trên màn hình.
+- **Thu phóng:** `+` / `−`, con lăn chuột, hoặc nút −/+ trên màn hình. **Xoay camera (3D):** `Q` / `R` hoặc nút ⟲ / ⟳.
 - **Máy tính:** mũi tên hoặc `W A S D` để di chuyển (chế độ tuần tra) · `SPACE` hoặc `E` để ra hiệu lệnh dừng xe hoặc xử lý tai nạn · `C` để cho qua (chế độ chốt) · `ESC` hoặc `P` để tạm dừng · phím `1–3` để chọn nhanh đáp án.
 - **Điện thoại:** chế độ chốt bấm nút **DỪNG XE / CHO QUA** trên bảng quan sát; chế độ tuần tra dùng cần điều khiển bên trái và nút **DỪNG XE** bên phải; nút `II` để tạm dừng.
 
@@ -114,7 +123,9 @@ game/
 ├── js/sprites.js         # đồ họa pixel chi tiết (vẽ ở độ phân giải gấp đôi)
 ├── js/events.js          # tình huống đặc biệt + nhiệm vụ trong ca
 ├── js/life.js            # người đi bộ, cây đung đưa, khói, mưa, nước, chim
-├── js/main.js            # vòng lặp game, điều khiển, camera, ánh sáng đêm, mưa
+├── js/r3d.js             # đồ họa 3D low-poly: dựng bản đồ, mô hình xe/người, camera xoay, ánh sáng
+├── js/main.js            # vòng lặp game, điều khiển, camera, ánh sáng đêm, mưa, lớp phủ 3D
+├── vendor/three.min.js   # thư viện Three.js r149 (MIT, xem vendor/THREE-LICENSE.txt)
 ├── sw.js, manifest.webmanifest, icon.svg   # chạy offline dạng ứng dụng (PWA)
 ```
 

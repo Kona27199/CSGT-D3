@@ -1,9 +1,9 @@
 /* Service worker: lưu toàn bộ game vào bộ nhớ đệm để chơi offline khi mở qua http(s) */
-const CACHE = 'csgt-patrol-v5';
+const CACHE = 'csgt-patrol-v6';
 const FILES = [
   './', 'index.html', 'css/style.css', 'manifest.webmanifest', 'icon.svg',
   'js/util.js', 'js/data.js', 'js/audio.js', 'js/sprites.js', 'js/map.js', 'js/traffic.js',
-  'js/player.js', 'js/ui.js', 'js/stop.js', 'js/events.js', 'js/life.js', 'js/main.js'
+  'js/player.js', 'js/ui.js', 'js/stop.js', 'js/events.js', 'js/life.js', 'js/r3d.js', 'js/main.js', 'vendor/three.min.js'
 ];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
