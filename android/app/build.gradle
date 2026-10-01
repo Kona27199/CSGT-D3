@@ -1,0 +1,45 @@
+plugins {
+    id 'com.android.application'
+}
+
+/* Số phiên bản lấy từ số lần chạy GitHub Actions (mỗi lần build tăng 1) */
+def buildNumber = (System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger()
+
+android {
+    namespace 'vn.csgt.catuantra'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'vn.csgt.catuantra'
+        minSdk 24
+        targetSdk 34
+        versionCode buildNumber
+        versionName "1.0." + buildNumber
+    }
+
+    /* Khóa ký cố định (lưu trong repo) để các bản APK sau cài đè được lên bản trước.
+       Chỉ dùng cho cài đặt nội bộ; muốn đưa lên Google Play cần khóa riêng, giữ bí mật. */
+    signingConfigs {
+        shared {
+            storeFile file('../keystore/csgt-catuantra.jks')
+            storePassword 'csgt-catuantra'
+            keyAlias 'csgt'
+            keyPassword 'csgt-catuantra'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.shared
+        }
+        debug {
+            signingConfig signingConfigs.shared
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

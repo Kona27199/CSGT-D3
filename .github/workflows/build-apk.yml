@@ -1,0 +1,64 @@
+# Tự động build file APK Android cho game "CSGT · Ca Tuần Tra"
+# Mỗi lần thư mục game/ hoặc android/ thay đổi: build APK, đính kèm vào mục Releases của repo.
+name: Build APK
+
+on:
+  push:
+    paths:
+      - 'game/**'
+      - 'android/**'
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Chép game vào assets của ứng dụng
+        run: |
+          rm -rf android/app/src/main/assets/game
+          mkdir -p android/app/src/main/assets
+          cp -r game android/app/src/main/assets/game
+          rm -f android/app/src/main/assets/game/README.md android/app/src/main/assets/game/sw.js
+
+      - name: Build APK
+        working-directory: android
+        run: gradle assembleRelease --no-daemon --stacktrace
+
+      - name: Đặt tên file APK
+        run: |
+          mkdir -p dist
+          cp android/app/build/outputs/apk/release/app-release.apk "dist/CSGT-CaTuanTra-v1.0.${{ github.run_number }}.apk"
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CSGT-CaTuanTra-apk
+          path: dist/*.apk
+
+      - name: Đăng lên mục Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-v1.0.${{ github.run_number }}
+          name: CSGT Ca Tuần Tra – bản APK 1.0.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          body: |
+            File APK cài trên điện thoại Android (Android 7.0 trở lên), chơi hoàn toàn offline.
+            Cách cài: tải file .apk bên dưới → mở file → cho phép "Cài ứng dụng không rõ nguồn gốc" → Cài đặt.
+            Bản dựng từ nhánh ${{ github.ref_name }}, commit ${{ github.sha }}.
+          files: dist/*.apk
+          make_latest: true

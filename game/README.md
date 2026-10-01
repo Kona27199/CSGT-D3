@@ -14,6 +14,12 @@ xác định đúng lỗi và mức phạt, ứng xử chuẩn mực và giữ l
 Game không tải bất kỳ tài nguyên nào từ Internet: đồ họa pixel và âm thanh 8-bit đều được tạo bằng code.
 Tiến trình (điểm kỷ lục, số sao, XP, cấp bậc) được lưu trong trình duyệt (localStorage).
 
+### Cài trên điện thoại Android (file APK)
+- Mỗi lần mã nguồn thay đổi, **GitHub Actions** tự build file APK (quy trình `.github/workflows/build-apk.yml`, dự án Android ở thư mục `android/`).
+- Tải APK ở mục **Releases** của repo (bản mới nhất ở đầu), mở file trên điện thoại, cho phép cài ứng dụng không rõ nguồn gốc rồi cài đặt.
+- Yêu cầu Android 7.0 trở lên. Chơi hoàn toàn offline. Nút Quay lại hỏi trước khi thoát; chuyển sang ứng dụng khác thì game tự tạm dừng.
+- Khóa ký APK lưu trong repo (`android/keystore/`) để các bản sau cài đè lên bản trước, giữ nguyên tiến trình. Khóa này chỉ dùng cài nội bộ; muốn phát hành lên Google Play cần tạo khóa riêng và giữ bí mật.
+
 ## 2. Ba chế độ chơi (chọn ở màn hình "Chọn ca tuần tra")
 
 | Chế độ | Cách chơi |

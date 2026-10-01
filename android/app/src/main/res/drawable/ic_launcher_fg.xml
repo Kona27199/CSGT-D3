@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Biểu tượng: khiên đỏ, ngôi sao vàng (vẽ pixel) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="36" android:viewportHeight="36">
+    <path android:fillColor="#C0392B" android:pathData="M10,6h16v18h-16z M12,24h12v2h-12z M15,26h6v2h-6z"/>
+    <path android:fillColor="#E84A3B" android:pathData="M12,8h12v14h-12z M14,22h8v2h-8z"/>
+    <path android:fillColor="#FFD23F" android:pathData="M17,10h2v2h-2z M16,12h4v2h-4z M13,14h10v2h-10z M15,16h6v2h-6z M14,18h3v2h-3z M19,18h3v2h-3z"/>
+</vector>
