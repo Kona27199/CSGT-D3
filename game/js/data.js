@@ -140,12 +140,30 @@ DATA.SHIFTS = [
     p: { helmet: 0.08, passenger: 0.3, passHelmet: 0.25, carry2: 0.05, phone: 0.05, runRed: 0.1, wrongway: 0.25, speed: 0.12, alcohol: 0.12, noLic: 0.05, noCarryLic: 0.06, noCarryReg: 0.05, noIns: 0.08, vneid: 0.4 },
     react: { coop: 4, beg: 2, argue: 2, film: 1, connect: 1, bribe: 1 }, flee: 0.05, accident: true,
     stars: [150, 320, 500]
+  },
+  {
+    id: 6, cpWait: 9, name: 'Ca 6 · Khu công nghiệp tan ca', short: 'KCN tan ca',
+    desc: 'Chiều tối, hàng nghìn công nhân tan ca, xe tải ra vào khu công nghiệp. Chú ý xe quá tải, quá khổ, chở quá số người.',
+    map: 'industrial', time: '17:30', light: 'dusk', weather: 'clear', duration: 240,
+    density: 1.2, mix: { moto: 0.72, car: 0.1, truck: 0.15, bus: 0.03 }, radar: false, checkpoint: false,
+    p: { helmet: 0.1, passenger: 0.35, passHelmet: 0.3, carry2: 0.1, phone: 0.06, runRed: 0.1, wrongway: 0, speed: 0, alcohol: 0.06, noLic: 0.05, noCarryLic: 0.06, noCarryReg: 0.05, noIns: 0.08, vneid: 0.4, overload: 0.35, oversize: 0.2, busOver: 0.4 },
+    react: { coop: 4, beg: 3, argue: 2, film: 1, connect: 1, bribe: 1 }, flee: 0.04, accident: false,
+    stars: [150, 320, 500]
+  },
+  {
+    id: 7, cpWait: 9, name: 'Ca 7 · Đường làng mùa lễ hội', short: 'Đường làng lễ hội',
+    desc: 'Buổi tối mùa lễ hội ở vùng nông thôn: nhiều người uống rượu bia, đi xe không đội mũ, thanh niên tụ tập đua xe.',
+    map: 'rural', time: '19:30', light: 'night', weather: 'clear', duration: 240,
+    density: 0.85, mix: { moto: 0.85, car: 0.1, truck: 0.05 }, radar: false, checkpoint: false,
+    p: { helmet: 0.18, passenger: 0.4, passHelmet: 0.35, carry2: 0.12, phone: 0.04, runRed: 0.08, wrongway: 0, speed: 0, alcohol: 0.22, noLic: 0.08, noCarryLic: 0.06, noCarryReg: 0.05, noIns: 0.1, vneid: 0.3 },
+    react: { coop: 4, beg: 3, connect: 2, argue: 2, bribe: 1 }, flee: 0.06, accident: false,
+    stars: [160, 340, 520]
   }
 ];
 
 /* Chế độ tuần tra tự do: sinh ngẫu nhiên từ seed */
 DATA.makeFreeShift = function (rand, daily) {
-  const maps = ['city', 'highway'];
+  const maps = ['city', 'highway', 'rural', 'industrial'];
   const lights = ['day', 'dusk', 'night'];
   const map = maps[Math.floor(rand() * maps.length)];
   const light = lights[Math.floor(rand() * lights.length)];
@@ -155,10 +173,10 @@ DATA.makeFreeShift = function (rand, daily) {
     id: daily ? 'daily' : 'free', cpWait: 10,
     name: daily ? 'Thử thách hôm nay' : 'Tuần tra tự do',
     short: daily ? 'Thử thách hôm nay' : 'Tuần tra tự do',
-    desc: 'Tình huống sinh ngẫu nhiên. ' + (map === 'city' ? 'Khu đô thị.' : 'Quốc lộ.'),
+    desc: 'Tình huống sinh ngẫu nhiên. Địa bàn: ' + MAP.NAMES[map] + '.',
     map: map, time: times[light], light: light, weather: rain ? 'rain' : 'clear', duration: 240,
-    density: 0.9 + rand() * 0.4, mix: { moto: 0.68, car: 0.27, truck: 0.05 }, radar: map === 'highway' || rand() < 0.5, checkpoint: false,
-    p: { helmet: 0.1, passenger: 0.33, passHelmet: 0.25, carry2: 0.06, phone: 0.06, runRed: map === 'city' ? 0.08 : 0, wrongway: map === 'city' ? 0.25 : 0, speed: 0.15, alcohol: light === 'night' ? 0.15 : 0.05, noLic: 0.05, noCarryLic: 0.06, noCarryReg: 0.05, noIns: 0.08, vneid: 0.4 },
+    density: 0.9 + rand() * 0.4, mix: map === 'industrial' ? { moto: 0.68, car: 0.12, truck: 0.17, bus: 0.03 } : { moto: 0.68, car: 0.27, truck: 0.05 }, radar: map === 'highway' || rand() < 0.5, checkpoint: false,
+    p: { helmet: 0.1, passenger: 0.33, passHelmet: 0.25, carry2: 0.06, phone: 0.06, runRed: map === 'highway' ? 0 : 0.08, wrongway: map === 'city' ? 0.25 : 0, overload: 0.3, oversize: 0.15, busOver: 0.4, speed: 0.15, alcohol: light === 'night' ? 0.15 : 0.05, noLic: 0.05, noCarryLic: 0.06, noCarryReg: 0.05, noIns: 0.08, vneid: 0.4 },
     react: { coop: 4, beg: 2, argue: 2, film: 1, connect: 1, bribe: 1 }, flee: 0.05, accident: map === 'city' && rand() < 0.5,
     stars: [150, 320, 500]
   };
@@ -206,7 +224,7 @@ DATA.MODES = {
 /* Hồ sơ chuyên đề cho tuần tra ô tô (ghép với giờ, thời tiết của ca) */
 DATA.carPatrolShift = function (sh) {
   return Object.assign({}, sh, {
-    map: 'highway', scope: 'car', radar: true, checkpoint: false,
+    map: sh.map === 'industrial' ? 'industrial' : 'highway', scope: 'car', radar: true, checkpoint: false,
     short: sh.short + ' · Ô tô',
     density: Math.max(0.9, sh.density * 0.9),
     mix: { moto: 0.3, car: 0.33, truck: 0.22, bus: 0.15 },
@@ -323,3 +341,132 @@ DATA.TIPS = [
   'Tại chốt kiểm soát theo kế hoạch, tổ công tác được dừng phương tiện để kiểm tra.',
   'Tổng mức phạt khi vi phạm nhiều lỗi được cộng theo từng hành vi.'
 ];
+
+/* ------------------------------ TÌNH HUỐNG ĐẶC BIỆT ------------------------------ */
+/* Mỗi câu: q = câu hỏi; options: ok = đáp án đúng; note = giải thích khi chọn sai */
+DATA.EVENT_INFO = {
+  accident: { icon: '🚑', name: 'Tai nạn giao thông' },
+  snatch: { icon: '🦹', name: 'Cướp giật tài sản' },
+  wanted: { icon: '🚨', name: 'Đối tượng truy nã' },
+  race: { icon: '🏍', name: 'Đua xe trái phép' },
+  help: { icon: '🤝', name: 'Hỗ trợ nhân dân' }
+};
+
+DATA.EVENT_Q = {
+  accident_truck: {
+    q: 'Xe tải lật, hàng hóa đổ tràn mặt đường, giao thông ùn ứ. Ưu tiên xử lý thế nào?',
+    options: [
+      { t: 'Đặt cảnh báo từ xa, phân luồng, cứu người bị nạn, phối hợp đơn vị chức năng cẩu kéo, thu dọn hàng hóa', ok: true },
+      { t: 'Cho người dân tự do nhặt hàng để nhanh thông đường', ok: false, note: 'Gây mất an toàn, xâm phạm tài sản, làm thay đổi hiện trường.' },
+      { t: 'Chờ chủ xe đến tự xử lý', ok: false, note: 'Tổ công tác phải chủ động bảo đảm an toàn, phân luồng ngay.' }
+    ]
+  },
+  accident_fall: {
+    q: 'Một người đi xe máy tự ngã, hơi thở có mùi rượu bia, bị trầy xước. Xử lý thế nào?',
+    options: [
+      { t: 'Sơ cứu, gọi cấp cứu nếu cần; kiểm tra nồng độ cồn; đưa phương tiện vào lề bảo đảm an toàn', ok: true },
+      { t: 'Để người đó tự đi về vì chỉ bị nhẹ', ok: false, note: 'Có dấu hiệu sử dụng rượu bia: cần kiểm tra, không để tiếp tục điều khiển xe.' },
+      { t: 'Lập biên bản ngay, chưa cần sơ cứu', ok: false, note: 'Ưu tiên cứu người trước.' }
+    ]
+  },
+  snatch1: {
+    q: 'Có người hô cướp! Đối tượng đi xe máy bỏ chạy. Đồng chí xử lý thế nào?',
+    options: [
+      { t: 'Bám theo ở khoảng cách an toàn, báo trung tâm chỉ huy, phối hợp lực lượng chặn bắt ở nơi vắng người', ok: true },
+      { t: 'Tông thẳng vào xe đối tượng để ép ngã', ok: false, note: 'Hành động nguy hiểm cho người đi đường và cán bộ.' },
+      { t: 'Bỏ qua vì đây không phải nhiệm vụ của CSGT', ok: false, note: 'CSGT có trách nhiệm phối hợp phòng, chống tội phạm trên tuyến.' }
+    ]
+  },
+  snatch1_cp: {
+    q: 'Đối tượng cướp giật đang chạy xe máy về phía chốt. Đồng chí xử lý thế nào?',
+    options: [
+      { t: 'Triển khai rào chắn từ xa, chặn ở vị trí an toàn, phối hợp khống chế đối tượng', ok: true },
+      { t: 'Đứng ra giữa đường dang tay chặn', ok: false, note: 'Rất nguy hiểm, đối tượng có thể tông vào cán bộ.' },
+      { t: 'Né sang bên cho đối tượng đi qua rồi bỏ qua', ok: false, note: 'Bỏ lọt tội phạm.' }
+    ]
+  },
+  snatch2: {
+    q: 'Đã khống chế được đối tượng cướp giật cùng tang vật. Bước tiếp theo?',
+    options: [
+      { t: 'Thu giữ tang vật, lập biên bản bắt người phạm tội quả tang, bàn giao cho cơ quan Công an có thẩm quyền', ok: true },
+      { t: 'Trả lại túi cho bị hại rồi thả đối tượng', ok: false, note: 'Phải bàn giao đối tượng để xử lý theo pháp luật.' },
+      { t: 'Đánh đối tượng để răn đe', ok: false, note: 'Nghiêm cấm xâm phạm thân thể người bị bắt.' }
+    ]
+  },
+  wanted1: {
+    q: 'Đối chiếu căn cước: người điều khiển đúng là đối tượng đang bị truy nã. Đồng chí làm gì?',
+    options: [
+      { t: 'Bình tĩnh, giữ khoảng cách an toàn, yêu cầu hỗ trợ, khống chế khi đủ lực lượng, tránh để đối tượng bỏ chạy', ok: true },
+      { t: 'Hô to tên đối tượng để xác nhận', ok: false, note: 'Dễ khiến đối tượng manh động, bỏ chạy.' },
+      { t: 'Để đối tượng đi, cuối ca mới báo cáo', ok: false, note: 'Bỏ lọt đối tượng truy nã.' }
+    ]
+  },
+  wanted2: {
+    q: 'Sau khi bắt giữ đối tượng truy nã, cần làm gì?',
+    options: [
+      { t: 'Lập biên bản bắt người đang bị truy nã, bàn giao ngay cho cơ quan Công an có thẩm quyền', ok: true },
+      { t: 'Tự lấy lời khai và xử lý tại chỗ', ok: false, note: 'Không đúng thẩm quyền, thủ tục.' },
+      { t: 'Đưa đối tượng về nhà để gia đình quản lý', ok: false, note: 'Sai quy định.' }
+    ]
+  },
+  race1: {
+    q: 'Phát hiện nhóm thanh niên đua xe trái phép, lạng lách. Đồng chí xử lý thế nào?',
+    options: [
+      { t: 'Không truy đuổi nguy hiểm; ghi hình, ghi biển số, báo trung tâm phối hợp chặn ở điểm phù hợp', ok: true },
+      { t: 'Tăng tốc rượt đuổi sát nút', ok: false, note: 'Dễ gây tai nạn cho người đua xe và người đi đường.' },
+      { t: 'Ném vật cản ra đường', ok: false, note: 'Hành vi nguy hiểm, trái quy định.' }
+    ]
+  },
+  race2: {
+    q: 'Các đối tượng đua xe đã bị dừng lại, nhiều em chưa đủ 18 tuổi. Bước tiếp theo?',
+    options: [
+      { t: 'Lập biên bản, xử lý theo quy định; thông báo gia đình, nhà trường đối với người chưa thành niên', ok: true },
+      { t: 'Nhắc nhở rồi cho đi vì còn nhỏ tuổi', ok: false, note: 'Đua xe trái phép là vi phạm nghiêm trọng, phải xử lý.' },
+      { t: 'Tịch thu điện thoại của các em', ok: false, note: 'Không có căn cứ.' }
+    ]
+  },
+  help_amb: {
+    q: 'Xe cấp cứu đang chở bệnh nhân bị kẹt giữa dòng xe. Đồng chí làm gì?',
+    options: [
+      { t: 'Bật đèn, còi ưu tiên, đi trước mở đường, hướng dẫn các phương tiện nhường đường', ok: true },
+      { t: 'Bảo xe cấp cứu chờ đến khi đường thông', ok: false, note: 'Xe cấp cứu đang làm nhiệm vụ được quyền ưu tiên.' },
+      { t: 'Đi phía sau xe cấp cứu', ok: false, note: 'Cần chủ động mở đường phía trước.' }
+    ]
+  },
+  help_break: {
+    q: 'Một ô tô chết máy giữa làn đường, tài xế lúng túng. Đồng chí làm gì?',
+    options: [
+      { t: 'Bật đèn cảnh báo, đặt nón cảnh báo phía sau, hỗ trợ đưa xe vào lề, hướng dẫn liên hệ cứu hộ', ok: true },
+      { t: 'Lập biên bản vì dừng xe giữa đường', ok: false, note: 'Xe gặp sự cố bất khả kháng: cần hỗ trợ bảo đảm an toàn.' },
+      { t: 'Bỏ đi vì không phải việc của CSGT', ok: false, note: 'Hỗ trợ người dân là trách nhiệm của tổ công tác.' }
+    ]
+  },
+  help_child: {
+    q: 'Một cháu bé đứng khóc bên đường, bị lạc người thân. Đồng chí làm gì?',
+    options: [
+      { t: 'Trấn an, hỏi thông tin, đưa cháu về trụ sở Công an gần nhất và liên hệ gia đình', ok: true },
+      { t: 'Chỉ đường cho cháu tự về', ok: false, note: 'Trẻ nhỏ không thể tự về an toàn.' },
+      { t: 'Đưa cháu lên xe đi tìm khắp nơi, không báo ai', ok: false, note: 'Cần thông báo đơn vị để phối hợp tìm gia đình.' }
+    ]
+  },
+  help_old: {
+    q: 'Một cụ già muốn qua đường đông xe. Đồng chí làm gì?',
+    options: [
+      { t: 'Ra hiệu cho các phương tiện dừng lại, dìu cụ qua đường an toàn', ok: true },
+      { t: 'Bảo cụ đợi lúc vắng xe rồi tự đi', ok: false, note: 'Người cao tuổi cần được hỗ trợ.' },
+      { t: 'Chỉ cụ đi bộ ra nút giao xa phía trước', ok: false, note: 'Chưa hỗ trợ kịp thời.' }
+    ]
+  }
+};
+
+/* Lịch tình huống của từng ca: trọng số các loại + số lượng */
+DATA.SHIFT_EVENTS = {
+  1: { w: { help: 3, accident: 1 }, n: 2 },
+  2: { w: { snatch: 2, race: 1, help: 1, accident: 1 }, n: 2 },
+  3: { w: { wanted: 2, race: 2, accident: 1 }, n: 2 },
+  4: { w: { accident: 2, wanted: 1, race: 1, help: 1 }, n: 2 },
+  5: { w: { accident: 2, snatch: 1, wanted: 1, help: 1 }, n: 3 },
+  6: { w: { accident: 2, help: 1, snatch: 1, wanted: 1 }, n: 3 },
+  7: { w: { help: 2, race: 2, wanted: 1, accident: 1 }, n: 3 },
+  free: { w: { accident: 1, snatch: 1, wanted: 1, race: 1, help: 1 }, n: 3 }
+};

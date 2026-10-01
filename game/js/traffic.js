@@ -142,7 +142,7 @@ const TRAFFIC = {
     const L = v.lane;
     const rn = L.axis === 'x' ? L.dir : -L.dir;
     let across = L.pos + v.shift + rn * v.off;
-    if (v.weave && v.state === 'drive') across += Math.sin(v.t * 1.7) * 3;
+    if (v.weave && (v.state === 'drive' || v.state === 'flee')) across += Math.sin(v.t * 1.7) * 3;
     if (L.axis === 'x') { v.x = v.s; v.y = across; } else { v.x = across; v.y = v.s; }
   },
 
@@ -243,7 +243,11 @@ const TRAFFIC = {
       if ((v.dir > 0 && v.s > L.len + 50) || (v.dir < 0 && v.s < -50)) v.dead = true;
     }
     const alive = [];
-    for (const v of TRAFFIC.list) { if (v.dead) onExit(v); else alive.push(v); }
+    for (const v of TRAFFIC.list) {
+      if (!v.dead) { alive.push(v); continue; }
+      if (EVENTS.onExit(v)) { if (!v.dead) alive.push(v); continue; }
+      onExit(v);
+    }
     TRAFFIC.list = alive;
   },
 
@@ -320,83 +324,7 @@ const TRAFFIC = {
   },
 
   /* ---------------- SPRITE PHƯƠNG TIỆN (nhìn từ trên, hướng sang phải) ---------------- */
-  sprite(v) {
-    const L = v.len, W = v.wid;
-    const cv = document.createElement('canvas');
-    cv.width = L + 2; cv.height = W + 2;
-    const g = cv.getContext('2d');
-    const r = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(x, y, w, h); };
-    r(1, 1 + 1, L, W, 'rgba(0,0,0,0.28)'); // bóng
-    if (v.kind === 'moto') {
-      const col = U.pick(TRAFFIC.MOTO_COLORS);
-      r(0, 3, 3, 2, '#141414'); r(L - 3, 3, 3, 2, '#141414');
-      r(2, 2, L - 5, 4, col); r(3, 3, L - 8, 2, '#2b2b2b');
-      r(L - 5, 0, 1, 8, '#9a9a9a'); r(L - 5, 0, 1, 1, '#e0e0e0'); r(L - 5, 7, 1, 1, '#e0e0e0');
-      r(L - 2, 3, 1, 2, '#fff6b0');
-      const drawPerson = (x, helm, helmCol, shirt) => {
-        r(x, 1, 4, 6, shirt);
-        if (helm) {
-          r(x, 2, 4, 4, helmCol); r(x + 1, 2, 1, 1, '#ffffff'); r(x + 3, 2, 1, 4, '#1a1a1a');
-        } else {
-          r(x, 2, 4, 4, '#2b1d14'); r(x + 3, 3, 1, 2, '#e0ac69'); r(x + 1, 2, 1, 1, '#4a3526');
-        }
-      };
-      if (v.pass === 2) drawPerson(2, v.passHelmet, U.pick(TRAFFIC.HELMETS), U.pick(TRAFFIC.SHIRTS));
-      if (v.pass >= 1) drawPerson(L - 13, v.passHelmet, U.pick(TRAFFIC.HELMETS), U.pick(TRAFFIC.SHIRTS));
-      const shirt = U.pick(TRAFFIC.SHIRTS);
-      drawPerson(L - 9, v.helmet, U.pick(TRAFFIC.HELMETS), shirt);
-      r(L - 6, 1, 2, 1, '#e0ac69'); r(L - 6, 6, 2, 1, '#e0ac69');
-      if (v.phone) { r(L - 7, 0, 2, 2, '#5ef2ff'); r(L - 7, 0, 1, 1, '#ffffff'); }
-    } else if (v.kind === 'car') {
-      const col = U.pick(TRAFFIC.CAR_COLORS);
-      r(3, 0, 5, 1, '#111'); r(L - 8, 0, 5, 1, '#111'); r(3, W - 1, 5, 1, '#111'); r(L - 8, W - 1, 5, 1, '#111');
-      r(0, 1, L, W - 2, col); r(0, 1, 1, 1, 'rgba(0,0,0,0)');
-      g.clearRect(0, 1, 1, 1); g.clearRect(0, W - 2, 1, 1); g.clearRect(L - 1, 1, 1, 1); g.clearRect(L - 1, W - 2, 1, 1);
-      r(L - 9, 2, 3, W - 4, '#1c2a3a'); r(L - 9, 2, 1, W - 4, '#3d5a78');
-      r(3, 2, 2, W - 4, '#1c2a3a');
-      r(5, 2, L - 14, W - 4, 'rgba(0,0,0,0.12)');
-      r(6, 3, L - 16, 1, 'rgba(255,255,255,0.25)');
-      r(L - 1, 2, 1, 2, '#fff6b0'); r(L - 1, W - 4, 1, 2, '#fff6b0');
-      r(0, 2, 1, 2, '#c1121f'); r(0, W - 4, 1, 2, '#c1121f');
-      if (v.phone) { r(L - 8, 3, 2, 2, '#5ef2ff'); r(L - 8, 3, 1, 1, '#ffffff'); }
-    } else if (v.kind === 'bus') {
-      const col = U.pick(['#f1f1f1', '#e9c46a', '#2a9d8f', '#3a86ff', '#c1121f']);
-      r(5, 0, 5, 1, '#111'); r(5, W - 1, 5, 1, '#111'); r(L - 9, 0, 5, 1, '#111'); r(L - 9, W - 1, 5, 1, '#111');
-      r(0, 1, L, W - 2, col);
-      g.clearRect(0, 1, 1, 1); g.clearRect(0, W - 2, 1, 1); g.clearRect(L - 1, 1, 1, 1); g.clearRect(L - 1, W - 2, 1, 1);
-      for (let i = 3; i < L - 5; i += 4) { r(i, 1, 3, 1, '#1c2a3a'); r(i, W - 2, 3, 1, '#1c2a3a'); }
-      r(L - 3, 2, 2, W - 4, '#1c2a3a'); r(L - 3, 2, 1, W - 4, '#3d5a78');
-      r(10, 4, 8, W - 8, 'rgba(255,255,255,0.35)'); r(11, 5, 6, W - 10, '#9aa5b1'); // máy lạnh trên nóc
-      r(2, 3, 30, 1, 'rgba(0,0,0,0.12)');
-      r(L - 1, 2, 1, 2, '#fff6b0'); r(L - 1, W - 4, 1, 2, '#fff6b0');
-      r(0, 2, 1, 2, '#c1121f'); r(0, W - 4, 1, 2, '#c1121f');
-      if (v.busExcess > 0) { r(L - 7, W - 2, 3, 1, '#e0ac69'); r(L - 7, W - 1, 1, 1, '#2b1d14'); r(L - 5, W - 1, 1, 1, '#2b1d14'); } // người đứng ở cửa
-      if (v.phone) { r(L - 5, 3, 2, 2, '#5ef2ff'); r(L - 5, 3, 1, 1, '#ffffff'); }
-    } else {
-      const cab = U.pick(['#1d4e89', '#c1121f', '#2a9d8f', '#e9c46a']);
-      const box = U.pick(['#d9d9d9', '#b56576', '#6d6875', '#e76f51']);
-      r(4, 0, 5, 1, '#111'); r(4, W - 1, 5, 1, '#111'); r(14, 0, 5, 1, '#111'); r(14, W - 1, 5, 1, '#111'); r(L - 7, 0, 4, 1, '#111'); r(L - 7, W - 1, 4, 1, '#111');
-      r(0, 1, L - 10, W - 2, box);
-      for (let i = 3; i < L - 11; i += 4) r(i, 1, 1, W - 2, 'rgba(0,0,0,0.15)');
-      if (DATA.loadTier(v.overPct)) {
-        /* hàng chất đầy, vun cao */
-        r(1, 2, L - 12, W - 4, '#8d6e63');
-        for (let i = 2; i < L - 12; i += 3) r(i, 3 + (i % 2), 2, W - 7, '#a1887f');
-        r(3, 4, L - 16, W - 8, '#6d4c41');
-      }
-      if (v.height > v.heightLimit) {
-        /* hàng xếp cao: khối hàng sẫm màu, có dây chằng */
-        r(1, 1, L - 12, W - 2, '#4e6e8e');
-        for (let i = 2; i < L - 12; i += 5) r(i, 1, 1, W - 2, '#ffd23f');
-        r(1, 1, L - 12, 1, '#2f4356'); r(1, W - 2, L - 12, 1, '#2f4356');
-      }
-      r(L - 10, 1, 1, W - 2, '#333');
-      r(L - 9, 1, 9, W - 2, cab); r(L - 4, 2, 2, W - 4, '#1c2a3a');
-      r(L - 1, 2, 1, 2, '#fff6b0'); r(L - 1, W - 4, 1, 2, '#fff6b0');
-      if (v.phone) { r(L - 5, 3, 2, 2, '#5ef2ff'); r(L - 5, 3, 1, 1, '#ffffff'); }
-    }
-    return cv;
-  },
+  sprite(v) { return SPR.vehicle(v); },
 
   angle(v) {
     if (v.axis === 'x') return v.dir > 0 ? 0 : Math.PI;
@@ -422,7 +350,7 @@ const TRAFFIC = {
     g.translate(x, y);
     g.rotate(TRAFFIC.angle(v) + (v.crashAngle || 0));
     g.scale(scale, scale);
-    g.drawImage(v.spr, -Math.floor(v.len / 2) - 1, -Math.floor(v.wid / 2) - 1);
+    g.drawImage(v.spr, -Math.floor(v.len / 2) - 1, -Math.floor(v.wid / 2) - 1, v.len + 2, v.wid + 2);
     g.restore();
   }
 };

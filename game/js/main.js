@@ -8,7 +8,7 @@ const G = {
   pauseWhy: null,
   shift: null, timeLeft: 0, score: 0, stats: null, log: [],
   target: null, pendingStop: null, actCool: 0,
-  accident: null, accidentAt: null,
+  tally: null,
   keys: {}, stick: { x: 0, y: 0 }, act: false, pass: false, touch: false,
   cp: false, cpCur: null, cpTimer: 0, cpLane: null, cpHold: 0, cpShift: null,
   drops: [], last: 0,
@@ -34,11 +34,12 @@ const G = {
   /* Độ phân giải logic: cạnh ngắn ~216 px, co giãn toàn màn hình */
   resize() {
     const W = window.innerWidth, H = window.innerHeight;
-    const scale = Math.max(1, Math.min(W, H) / 216);
-    G.view.w = Math.min(560, Math.ceil(W / scale));
-    G.view.h = Math.min(560, Math.ceil(H / scale));
-    G.cv.width = G.view.w; G.cv.height = G.view.h;
-    G.dark.width = G.view.w; G.dark.height = G.view.h;
+    /* thế giới phóng to: cạnh ngắn màn hình ~150 đơn vị; canvas vẽ ở độ phân giải RS lần */
+    const scale = Math.max(1, Math.min(W, H) / 150);
+    G.view.w = Math.min(420, Math.ceil(W / scale));
+    G.view.h = Math.min(420, Math.ceil(H / scale));
+    G.cv.width = G.view.w * RS; G.cv.height = G.view.h * RS;
+    G.dark.width = G.view.w * RS; G.dark.height = G.view.h * RS;
     G.cam.w = G.view.w; G.cam.h = G.view.h;
     G.g.imageSmoothingEnabled = false;
   },
@@ -127,6 +128,9 @@ const G = {
   start(shift, seed, mode) {
     UI.hideScreen();
     UI.closeModal();
+    UI.cpPanel(null);
+    UI.hint(null);
+    UI.$('toast').innerHTML = '';
     mode = mode || SAVE.data.mode || 'cp';
     if (!DATA.MODES[mode]) mode = mode === 'patrol' ? 'moto' : 'cp';
     G.modeUsed = mode;
@@ -140,11 +144,9 @@ const G = {
     TRAFFIC.reset();
     if (G.cp) {
       /* chốt kiểm soát: làn ngoài cùng chiều Đông dành cho xe vào chốt */
-      G.cpLane = m.lanes[3];
+      G.cpLane = m.lanes[m.cpLane];
       G.cpLane.noSpawn = true;
-      const spot = m.kind === 'highway' ? { x: 40 * TILE, y: 16 * TILE + 10 } : { x: 14 * TILE, y: 21 * TILE + 10 };
-      m.cpSpot = spot;
-      G.cpHold = spot.x + 14;
+      G.cpHold = m.cpSpot.x + 14;
       /* tăng tỉ lệ vi phạm vì xe đến lần lượt */
       const p = Object.assign({}, shift.p);
       for (const k of ['helmet', 'passHelmet', 'carry2', 'phone', 'runRed', 'speed', 'alcohol']) p[k] = Math.min(0.6, (p[k] || 0) * 1.8);
@@ -152,8 +154,7 @@ const G = {
     }
     G.prewarm(20);
     for (const v of TRAFFIC.list) { v.ranRed = false; v.redWitnessed = false; }
-    const vehSpawn = m.kind === 'highway' ? { x: 40 * TILE, y: 16 * TILE + 8 } : { x: 12 * TILE, y: 20 * TILE + 8 };
-    PLAYER.reset(G.cp ? m.cpSpot : vehSpawn, G.cp ? null : mode);
+    PLAYER.reset(G.cp ? m.cpSpot : m.vehSpawn, G.cp ? null : mode);
     if (G.cp) PLAYER.face = 'left';
     G.cpCur = null; G.cpTimer = 0.6; G.pass = false;
     UI.$('touch').classList.toggle('cp', G.cp);
@@ -161,14 +162,15 @@ const G = {
     G.score = 0; G.log = [];
     G.stats = { passOk: 0, stops: 0, correct: 0, missed: 0, wrong: 0, escaped: 0, procOk: 0, procBad: 0, bribeRefused: 0, fineMin: 0, fineMax: 0, accident: null };
     G.target = null; G.pendingStop = null; G.act = false; G.actCool = 0;
-    G.accident = null;
-    G.accidentAt = shift.accident ? shift.duration * U.range(0.4, 0.6) : null;
+    G.tally = { viol: {}, events: 0 };
     G.drops = [];
     for (let i = 0; i < 140; i++) G.drops.push({ x: Math.random() * 600, y: Math.random() * 600, s: 180 + Math.random() * 120 });
     G.mode = 'play';
     G.pauseWhy = null;
     UI._cache = {};
     UI.hud(true);
+    EVENTS.start(shift);
+    MISSIONS.start(mode, shift);
     AUDIO.siren();
     const tkey = G.cp ? 'tutorialDone' : 'tut_' + mode;
     const tlines = G.cp ? DATA.TUTORIAL_CP : (mode === 'car' ? DATA.TUTORIAL_CAR : DATA.TUTORIAL_MOTO).concat(DATA.TUTORIAL.slice(1));
@@ -191,7 +193,10 @@ const G = {
 
   endShift(reason) {
     if (G.mode === 'summary') return;
+    if (reason !== 'bribe') MISSIONS.check(true);
     G.mode = 'summary';
+    EVENTS.clear();
+    UI.$('toast').innerHTML = '';
     UI.closeModal();
     UI.hud(false);
     const sh = G.shift, failed = reason === 'bribe';
@@ -219,7 +224,7 @@ const G = {
       const n = DATA.SHIFTS.find(x => x.id === sh.id + 1);
       if (n && SAVE.unlocked(n.id)) nextShift = n;
     }
-    UI.summary({ mode: G.modeUsed, shift: G.baseShift || sh, score: score, stars: stars, stats: G.stats, log: G.log, failed: failed, newBest: newBest, promoted: promoted, nextShift: nextShift });
+    UI.summary({ missions: MISSIONS.list, mode: G.modeUsed, shift: G.baseShift || sh, score: score, stars: stars, stats: G.stats, log: G.log, failed: failed, newBest: newBest, promoted: promoted, nextShift: nextShift });
   },
 
   /* ---------------- CHỐT KIỂM SOÁT ---------------- */
@@ -229,6 +234,13 @@ const G = {
 
   cpSpawn() {
     const L = G.cpLane, sh = G.cpShift;
+    const A = EVENTS.active;
+    if (A && A.pendingCp) {
+      const w = A.pendingCp; A.pendingCp = null;
+      w.lane = L; w.s = Math.max(-30, G.cam.x - 30); w.holdAt = G.cpHold; w.cp = true; w.boost = 2; w.speed = w.cruiseKmh * KPX * 2;
+      TRAFFIC.pos(w); TRAFFIC.list.push(w); G.cpCur = w;
+      return;
+    }
     const v = TRAFFIC.make(L, sh, Math.max(-30, G.cam.x - 30));
     /* máy đo tốc độ ghi nhận tốc độ hành trình tại điểm đo; hình ảnh xe vào chốt được tăng tốc cho nhịp chơi nhanh */
     if (G.shift.radar) v.measured = Math.round(v.cruiseKmh);
@@ -237,7 +249,7 @@ const G = {
     v.holdAt = G.cpHold;
     v.cp = true;
     if (v.runRed) { v.ranRed = true; v.redWitnessed = true; }
-    if (MAP.cur.kind === 'city' && v.veh === 'moto' && U.chance((sh.p.wrongway || 0) * 0.5)) v.wrongReport = true;
+    if (MAP.cur.oneway && v.veh === 'moto' && U.chance((sh.p.wrongway || 0) * 0.5)) v.wrongReport = true;
     TRAFFIC.list.push(v);
     G.cpCur = v;
   },
@@ -247,6 +259,7 @@ const G = {
     v.holdAt = null;
     v.boost = 1;
     v.state = 'drive';
+    if (v.wanted) { G.vehicleDone(v); EVENTS.wantedMissed(); return; }
     const signs = TRAFFIC.signs(v);
     let pts, msg;
     if (TRAFFIC.visibleViolations(v).length || (v.weave && v.alc > 0)) {
@@ -266,6 +279,7 @@ const G = {
     G.log.push({ plate: v.plate, text: 'Cho qua' + (pts < 0 ? ' – sai' : ' – đúng'), pts: pts });
     UI.toast(msg, pts < 0 ? 'bad' : '');
     G.vehicleDone(v);
+    MISSIONS.check();
   },
 
   updateCp(dt) {
@@ -286,27 +300,6 @@ const G = {
     G.act = false; G.pass = false;
   },
 
-  /* ---------------- TAI NẠN ---------------- */
-  spawnAccident() {
-    const m = MAP.cur, spot = m.accidentSpot, L = m.lanes[spot.lane];
-    TRAFFIC.list = TRAFFIC.list.filter(v => !(v.lane === L && Math.abs(v.s - spot.s) < 50));
-    const a = TRAFFIC.make(L, Object.assign({}, G.shift, { mix: { moto: 1 } }), spot.s + 6);
-    const b = TRAFFIC.make(L, Object.assign({}, G.shift, { mix: { car: 1 } }), spot.s - 14);
-    for (const v of [a, b]) { v.state = 'crash'; v.speed = 0; v.stopped = true; v.flee = false; }
-    a.crashAngle = 0.6; b.crashAngle = -0.25; a.off = -3;
-    TRAFFIC.pos(a); TRAFFIC.pos(b);
-    TRAFFIC.list.push(a, b);
-    G.accident = { vs: [a, b], x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, t: 0 };
-    AUDIO.siren();
-    UI.toast('📻 Trung tâm chỉ huy: Có tai nạn giao thông! Đến hiện trường ngay!', 'bad');
-  },
-  clearAccident() {
-    if (!G.accident) return;
-    for (const v of G.accident.vs) v.dead = true;
-    TRAFFIC.list = TRAFFIC.list.filter(v => !v.dead);
-    G.accident = null;
-  },
-
   /* ---------------- CẬP NHẬT ---------------- */
   update(dt) {
     const m = MAP.cur;
@@ -322,7 +315,10 @@ const G = {
     if (G.timeLeft <= 0) { G.timeLeft = 0; G.endShift('time'); return; }
     TRAFFIC.updateLights(m, dt);
     TRAFFIC.spawnAll(m, G.shift, dt);
+    EVENTS.update(dt);
+    if (G.mode !== 'play') return;
     TRAFFIC.update(m, dt, G.cam, v => {
+      if (v.event) return;
       if (!v.stopped && v.near && TRAFFIC.visibleViolations(v).length) {
         G.stats.escaped++; G.addScore(-5);
         UI.toast('Để lọt phương tiện vi phạm ' + v.plate + ' (−5)');
@@ -334,14 +330,6 @@ const G = {
       const m2 = MAP.cur;
       G.cam.x = Math.round(U.clamp(PLAYER.x - G.cam.w * 0.3, 0, Math.max(0, m2.pw - G.cam.w)));
       G.cam.y = Math.round(U.clamp(PLAYER.y - G.cam.h * 0.5, 0, Math.max(0, m2.ph - G.cam.h)));
-      if (G.accidentAt != null && G.timeLeft <= G.accidentAt && !G.pendingStop && (!G.cpCur || G.cpCur.state !== 'pullover')) {
-        G.accidentAt = null;
-        AUDIO.siren();
-        UI.toast('📻 Trung tâm chỉ huy: Có tai nạn giao thông gần chốt! Tổ công tác đến hiện trường ngay!', 'bad');
-        UI.cpPanel(null);
-        INSPECT.accident();
-        return;
-      }
       if (G.pendingStop && G.pendingStop.state === 'stopped' && G.pendingStop.t - G.pendingStop.stoppedAt > 0.3) {
         const v = G.pendingStop; G.pendingStop = null;
         INSPECT.begin(v);
@@ -357,7 +345,7 @@ const G = {
     /* khóa mục tiêu */
     let best = null, bd = 72;
     for (const v of TRAFFIC.list) {
-      if (v.state !== 'drive' || v.stopped) continue;
+      if (v.state !== 'drive' || v.stopped || v.special) continue;
       const d = Math.hypot(v.x - PLAYER.x, v.y - PLAYER.y);
       if (d < 80 && !G.pendingStop) v.near = true;
       if (d < bd) { bd = d; best = v; }
@@ -375,33 +363,23 @@ const G = {
       INSPECT.begin(v);
       return;
     }
-    /* tai nạn */
-    if (G.accidentAt != null && !G.accident && G.timeLeft <= G.accidentAt) { G.accidentAt = null; G.spawnAccident(); }
-    let nearAcc = false;
-    if (G.accident) {
-      G.accident.t += dt;
-      nearAcc = Math.hypot(G.accident.x - PLAYER.x, G.accident.y - PLAYER.y) < 56;
-      if (G.accident.t > 75) {
-        G.addScore(-40); G.stats.accident = -40;
-        G.log.push({ plate: 'Tai nạn', text: 'Không có mặt kịp thời', pts: -40 });
-        UI.toast('Tổ công tác khác đã phải xử lý vụ tai nạn (−40)', 'bad');
-        G.clearAccident();
-      }
-    }
+    /* tình huống đặc biệt */
+    const nearAcc = EVENTS.near();
     /* hành động */
     G.actCool -= dt;
     if (G.act) {
       G.act = false;
-      if (nearAcc) { INSPECT.accident(); return; }
+      if (nearAcc) { EVENTS.interact(); return; }
       if (G.pendingStop) UI.toast('Đang chờ phương tiện tấp vào lề...');
       else if (best && G.actCool <= 0) { G.actCool = 0.6; INSPECT.command(best); }
       else if (!best) UI.toast('Không có phương tiện trong tầm hiệu lệnh');
     }
     /* gợi ý */
-    if (nearAcc) UI.hint('<b>SPACE</b> / DỪNG XE: xử lý hiện trường tai nạn');
+    if (nearAcc) UI.hint('<b>SPACE</b> / XỬ LÝ: ' + U.esc(EVENTS.active.title));
     else if (G.pendingStop) UI.hint('Phương tiện đang tấp vào lề...');
     else if (best) UI.hint('<b>SPACE</b> / DỪNG XE: ra hiệu lệnh dừng ' + U.esc(best.plate));
-    else if (G.accident) UI.hint('⚠ Đến hiện trường tai nạn (theo mũi tên đỏ)');
+    else if (EVENTS.active && EVENTS.active.type !== 'wanted') UI.hint('⚠ Đến hiện trường (theo mũi tên đỏ): ' + U.esc(EVENTS.active.title));
+    else if (EVENTS.active) UI.hint('🚨 Tìm xe biển số ' + U.esc(EVENTS.active.vehicle ? EVENTS.active.vehicle.plate : '') + ' trong dòng xe');
     else UI.hint(null);
     UI.$('btnAct').textContent = nearAcc ? 'XỬ LÝ' : 'DỪNG XE';
   },
@@ -410,25 +388,19 @@ const G = {
   render() {
     const g = G.g, m = MAP.cur, cam = G.cam;
     if (!m) return;
+    g.setTransform(RS, 0, 0, RS, 0, 0);
+    g.imageSmoothingEnabled = false;
     g.fillStyle = '#1a1a1a';
     g.fillRect(0, 0, cam.w, cam.h);
     const sw = Math.min(cam.w, m.pw - cam.x), sh = Math.min(cam.h, m.ph - cam.y);
-    g.drawImage(m.bg, cam.x, cam.y, sw, sh, 0, 0, sw, sh);
+    g.drawImage(m.bg, cam.x * RS, cam.y * RS, sw * RS, sh * RS, 0, 0, sw, sh);
     MAP.drawLights(g, m, cam);
     TRAFFIC.draw(g, cam);
-    if (G.accident) {
-      const ax = Math.round(G.accident.x - cam.x), ay = Math.round(G.accident.y - cam.y);
-      for (let i = 0; i < 5; i++) {
-        const t = (G.accident.t * 0.8 + i * 0.2) % 1;
-        g.fillStyle = 'rgba(90,90,90,' + (0.6 * (1 - t)) + ')';
-        g.fillRect(ax - 2 + Math.sin(i * 3 + t * 4) * 3, ay - 6 - t * 18, 4, 4);
-      }
-      if (Math.floor(G.accident.t * 3) % 2 === 0) MAP.pixelText(g, '!', ax - 1, ay - 26, '#ff3b30');
-    }
+    if (G.mode !== 'menu') EVENTS.draw(g, cam);
     if (G.mode !== 'menu' && G.cp && m.cpSpot) G.drawCones(g, m, cam);
     if (G.mode === 'play' && !G.cp && Math.floor(performance.now() / 300) % 2 === 0) {
       for (const v of TRAFFIC.list) {
-        if (v.state !== 'drive' || v.stopped) continue;
+        if (v.state !== 'drive' || v.stopped || v.special) continue;
         if (Math.hypot(v.x - PLAYER.x, v.y - PLAYER.y) > 110) continue;
         if (!TRAFFIC.signs(v).length) continue;
         const x = Math.round(v.x - cam.x), y = Math.round(v.y - cam.y) - 15;
@@ -452,18 +424,7 @@ const G = {
     }
     G.lighting();
     if (G.shift && G.shift.weather === 'rain') G.rain();
-    /* mũi tên chỉ hướng tai nạn */
-    if (G.accident && G.mode === 'play') {
-      const ax = G.accident.x - cam.x, ay = G.accident.y - cam.y;
-      if (ax < 0 || ay < 0 || ax > cam.w || ay > cam.h) {
-        const cx = cam.w / 2, cy = cam.h / 2, ang = Math.atan2(ay - cy, ax - cx);
-        const px = U.clamp(cx + Math.cos(ang) * 1000, 10, cam.w - 10), py = U.clamp(cy + Math.sin(ang) * 1000, 10, cam.h - 10);
-        g.save(); g.translate(Math.round(px), Math.round(py)); g.rotate(ang);
-        g.fillStyle = Math.floor(performance.now() / 250) % 2 ? '#ff3b30' : '#ffffff';
-        g.fillRect(-6, -1, 7, 3); g.fillRect(0, -3, 2, 7); g.fillRect(2, -2, 2, 5); g.fillRect(4, -1, 2, 3);
-        g.restore();
-      }
-    }
+    if (G.mode !== 'menu') EVENTS.drawArrow(g, cam);
   },
 
   drawCones(g, m, cam) {
@@ -480,6 +441,7 @@ const G = {
     const L = G.shift ? G.shift.light : 'day';
     if (L === 'day') return;
     const dg = G.dg, cam = G.cam, m = MAP.cur;
+    dg.setTransform(RS, 0, 0, RS, 0, 0);
     dg.globalCompositeOperation = 'source-over';
     dg.clearRect(0, 0, cam.w, cam.h);
     dg.fillStyle = L === 'night' ? 'rgba(6,10,32,0.74)' : 'rgba(60,25,70,0.32)';
@@ -503,8 +465,9 @@ const G = {
       hole(x + ax * ahead, y + ay * ahead, v.kind === 'moto' ? 16 : 22, 0.8);
     }
     if (G.mode !== 'menu') hole(PLAYER.x - cam.x, PLAYER.y - cam.y - 6, 30, 0.7);
-    if (G.accident) hole(G.accident.x - cam.x, G.accident.y - cam.y, 26, 0.6);
-    G.g.drawImage(G.dark, 0, 0);
+    const ep = G.mode !== 'menu' ? EVENTS.pos() : null;
+    if (ep) hole(ep.x - cam.x, ep.y - cam.y, 26, 0.6);
+    G.g.drawImage(G.dark, 0, 0, cam.w, cam.h);
     /* quầng đèn */
     const g = G.g;
     g.globalCompositeOperation = 'lighter';
@@ -525,7 +488,7 @@ const G = {
       d.y += d.s * dt; d.x -= d.s * 0.15 * dt;
       if (d.y > cam.h) { d.y = -6; d.x = Math.random() * (cam.w + 40); }
       if (d.x < -4) d.x = cam.w + 4;
-      g.fillRect(Math.round(d.x), Math.round(d.y), 1, 4);
+      g.fillRect(Math.round(d.x * 2) / 2, Math.round(d.y), 0.5, 4);
     }
   },
 

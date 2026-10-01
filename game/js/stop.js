@@ -67,6 +67,7 @@ const INSPECT = {
 
   /* ---------- BƯỚC 1: TIẾP CẬN ---------- */
   begin(v) {
+    if (v.wanted) { EVENTS.wantedStop(v); return; }
     const sh = G.shift;
     const c = INSPECT.ctx = { v: v, pts: 0, notes: [], lookedUp: false, tested: false, reactDone: v.react === 'coop', released: false };
     c.truth = TRAFFIC.truth(v, sh);
@@ -344,7 +345,7 @@ const INSPECT = {
       let st;
       if (a.id === r.correct && (!a.id || a.fine === r.correct)) {
         st = 'ok';
-        if (r.correct) { pts += 20; G.stats.correct++; confirmed++; const F = DATA.fineOf(r.correct, v); fmin += F[0]; fmax += F[1]; }
+        if (r.correct) { G.tally.viol[r.correct] = (G.tally.viol[r.correct] || 0) + 1; pts += 20; G.stats.correct++; confirmed++; const F = DATA.fineOf(r.correct, v); fmin += F[0]; fmax += F[1]; }
         else { pts += 5; }
       } else if (r.correct && a.id === r.correct) { st = 'fine'; pts -= 10; G.stats.wrong++; confirmed++; }
       else if (r.correct) { st = 'miss'; pts -= 15; G.stats.missed++; if (a.id) confirmed++; }
@@ -381,6 +382,7 @@ const INSPECT = {
     const nBad = res.filter(x => x.st !== 'ok').length + extra.filter(e => e.st === 'miss').length;
     G.log.push({ plate: v.plate, text: nOk + ' lỗi kết luận đúng, ' + nBad + ' sai/bỏ sót', pts: pts });
     if (pts >= 0) AUDIO.good(); else AUDIO.bad();
+    MISSIONS.check();
     INSPECT.showResult(res, extra, pts, fmin, fmax);
   },
 
@@ -426,44 +428,6 @@ const INSPECT = {
     row.appendChild(btn);
     body.appendChild(row);
     btn.focus();
-  },
-
-  /* ---------- TAI NẠN GIAO THÔNG ---------- */
-  accident() {
-    G.pause('accident');
-    const box = UI.modal('🚑 Xử lý vụ tai nạn giao thông', '');
-    const body = box.querySelector('.m-body');
-    let i = 0, total = 0;
-    const ask = () => {
-      body.innerHTML = '';
-      const Q = DATA.ACCIDENT[i];
-      const p = document.createElement('p');
-      p.className = 'q';
-      p.textContent = (i + 1) + '/' + DATA.ACCIDENT.length + '. ' + Q.q;
-      body.appendChild(p);
-      UI.choices(body, U.shuffled(Q.options), o => {
-        const d = o.ok ? 20 : -10;
-        total += d;
-        if (o.ok) AUDIO.good(); else AUDIO.bad();
-        UI.feedback(body, o.ok, o.ok ? 'Chính xác!' : o.note, () => {
-          i++;
-          if (i < DATA.ACCIDENT.length) ask();
-          else {
-            G.addScore(total);
-            G.stats.accident = total;
-            G.log.push({ plate: 'Tai nạn', text: 'Xử lý hiện trường', pts: total });
-            G.clearAccident();
-            body.innerHTML = '<p>Hoàn thành xử lý hiện trường. Điểm: <b class="' + (total >= 0 ? 'ok' : 'bad') + '">' + (total >= 0 ? '+' : '') + total + '</b></p>';
-            const row = document.createElement('div');
-            row.className = 'row-end';
-            const b = document.createElement('button');
-            b.className = 'btn primary'; b.textContent = 'Tiếp tục ▶';
-            b.onclick = () => { UI.closeModal(); G.resume(); };
-            row.appendChild(b); body.appendChild(row);
-          }
-        });
-      });
-    };
-    ask();
   }
+
 };

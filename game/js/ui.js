@@ -222,6 +222,11 @@ const UI = {
       '<li>Dấu <b style="color:#ff3b30">!</b> nhấp nháy trên xe: tổ công tác vừa ghi nhận xe vượt đèn đỏ.</li>' +
       '<li>Mỗi lần dừng xe có 3 bước: <b>Tiếp cận</b> → <b>Kiểm tra</b> (giấy tờ, tra cứu, đo nồng độ cồn) → <b>Kết luận theo bằng chứng</b>: mỗi bằng chứng chọn đúng lỗi và mức phạt, hoặc "Không vi phạm".</li>' +
       '<li>Mỗi ca, tình huống được sinh ngẫu nhiên: lỗi ẩn (không bằng lái, bảo hiểm hết hạn, nồng độ cồn…), thái độ người vi phạm khác nhau.</li></ul>' +
+      '<h4>Tình huống đặc biệt</h4><ul>' +
+      '<li>Trong ca sẽ phát sinh ngẫu nhiên: <b>🚑 tai nạn</b> (va chạm, xe tải lật, tự ngã), <b>🦹 cướp giật</b>, <b>🚨 truy nã</b>, <b>🏍 đua xe trái phép</b>, <b>🤝 hỗ trợ nhân dân</b> (xe cấp cứu, xe chết máy, trẻ lạc, cụ già qua đường).</li>' +
+      '<li>Tuần tra: theo <b style="color:#ff3b30">mũi tên đỏ</b> đến hiện trường rồi bấm SPACE. Truy nã: tìm đúng biển số trong dòng xe rồi dừng xe. Chốt: nhận tin qua bộ đàm, xử lý ngay; xe truy nã sẽ đi qua chốt.</li>' +
+      '<li>Mỗi câu xử lý đúng +20, sai −10. Để quá thời gian: bị trừ điểm.</li></ul>' +
+      '<h4>Nhiệm vụ trong ca</h4><ul><li>Mỗi ca có 3 nhiệm vụ ngẫu nhiên (góc trái màn hình), hoàn thành được thưởng 30–60 điểm.</li></ul>' +
       '<h4>Tính điểm</h4><ul>' +
       '<li>Kết luận đúng lỗi và mức phạt: <b>+20</b> · Đúng "Không vi phạm": <b>+5</b> · Đúng lỗi, sai mức phạt: <b>−10</b> · Sai hoặc bỏ sót: <b>−15</b> · Đúng quy trình, ứng xử chuẩn mực: <b>+10</b></li>' +
       '<li>Từ chối hối lộ: <b>+30</b> · Nhận hối lộ: <b>kết thúc ca, 0 sao</b></li>' +
@@ -250,6 +255,9 @@ const UI = {
       '<div><b>' + st.procOk + '/' + (st.procOk + st.procBad) + '</b><span>Ứng xử chuẩn mực</span></div>' +
       '<div><b>' + (r.failed ? '✖' : st.bribeRefused > 0 ? '✔ ' + st.bribeRefused : '✔') + '</b><span>Liêm chính</span></div>' +
       '</div>';
+    if (r.missions && r.missions.length) {
+      html += '<div class="mis-sum"><b>🎯 Nhiệm vụ trong ca</b>' + r.missions.map(m => '<div class="' + (m.done ? 'ok' : 'dim') + '">' + (m.done ? '✔ ' : '✖ ') + U.esc(m.def.text) + (m.done ? ' (+' + m.def.reward + ')' : '') + '</div>').join('') + '</div>';
+    }
     if (st.passOk) html += '<p class="dim">Cho qua đúng (không vi phạm): ' + st.passOk + ' phương tiện</p>';
     if (st.fineMax > 0) html += '<p class="fine">Tổng mức phạt các biên bản lập đúng: ' + U.money(st.fineMin) + ' – ' + U.money(st.fineMax) + '</p>';
     html += '<p class="rank">🎖 ' + rk.cur.name + ' · ' + SAVE.data.xp + ' XP' + (r.promoted ? ' <span class="nb">THĂNG CẤP!</span>' : '') + '</p>';
@@ -295,6 +303,7 @@ const UI = {
   hud(on) {
     UI.$('hud').classList.toggle('hidden', !on);
     UI.$('touch').classList.toggle('hidden', !on || !G.touch);
+    if (!on) UI.banner(null);
     if (!on) { UI.$('card').classList.add('hidden'); UI.$('hint').classList.add('hidden'); UI.cpPanel(null); }
   },
   _cache: {},
@@ -369,6 +378,14 @@ const UI = {
       UI.$('cpPass').onclick = () => { AUDIO.init(); G.pass = true; };
     }
     UI.$('cpTimerBar').style.width = Math.round(frac * 100) + '%';
+  },
+
+  banner(html) {
+    const b = UI.$('evBanner');
+    if (!b) return;
+    if (!html) { b.classList.add('hidden'); UI._cache.evBanner = null; return; }
+    b.classList.remove('hidden');
+    UI.set('evBanner', html);
   },
 
   hint(msg) {

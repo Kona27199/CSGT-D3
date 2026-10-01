@@ -31,17 +31,30 @@ Tiến trình (điểm kỷ lục, số sao, XP, cấp bậc) được lưu tron
 
 ## 4. Kịch bản
 
-| Ca | Bối cảnh | Trọng tâm |
+| Ca | Bản đồ | Trọng tâm |
 |---|---|---|
-| 1 · Ngày đầu nhận nhiệm vụ | 07:00, phố gần trường học | Đội trưởng hướng dẫn. Lỗi mũ bảo hiểm, chở quá số người, giấy tờ |
-| 2 · Giờ cao điểm | 17:00, ngã tư đông xe | Vượt đèn đỏ, đi ngược chiều đường một chiều, dùng điện thoại |
-| 3 · Chốt kiểm tra nồng độ cồn | 21:00, chốt theo kế hoạch | Đo nồng độ cồn mọi phương tiện, hối lộ, "người quen", bỏ chạy |
-| 4 · Tuần tra quốc lộ | 10:00, quốc lộ 60 km/h | Máy đo tốc độ, xác định đúng mức vượt tốc độ |
-| 5 · Đêm mưa | 22:00, mưa, tầm nhìn kém | Tổng hợp mọi lỗi và xử lý hiện trường tai nạn giao thông |
-| Tuần tra tự do | Ngẫu nhiên | Bản đồ, thời tiết, giờ và mật độ đều ngẫu nhiên |
-| Thử thách hôm nay | Cố định theo ngày | Mọi người chơi cùng một tình huống trong ngày, so kỷ lục |
+| 1 · Ngày đầu nhận nhiệm vụ | Phố đô thị, 07:00 | Đội trưởng hướng dẫn. Mũ bảo hiểm, chở quá số người, giấy tờ |
+| 2 · Giờ cao điểm | Phố đô thị, 17:00 | Vượt đèn đỏ, đi ngược chiều, điện thoại |
+| 3 · Chốt kiểm tra nồng độ cồn | Phố đô thị, 21:00 | Đo nồng độ cồn, hối lộ, "người quen", bỏ chạy |
+| 4 · Tuần tra quốc lộ | Quốc lộ, 10:00 | Máy đo tốc độ |
+| 5 · Đêm mưa | Phố đô thị, 22:00, mưa | Tổng hợp mọi lỗi, nhiều tình huống đặc biệt |
+| 6 · Khu công nghiệp tan ca | **Khu công nghiệp**, 17:30 | Xe tải quá tải, quá khổ; công nhân chở quá số người |
+| 7 · Đường làng mùa lễ hội | **Nông thôn**, 19:30 | Rượu bia, không đội mũ, đua xe |
+| Tuần tra tự do / Thử thách hôm nay | Ngẫu nhiên 4 bản đồ | Mọi thứ ngẫu nhiên |
 
-Mở khóa ca sau khi đạt ít nhất 1 sao ở ca trước. Tích XP để thăng cấp: Hạ sĩ → Trung sĩ → … → Thiếu tá.
+**Bốn bản đồ:** Phố đô thị (đường một chiều, 2 ngã tư có đèn) · Quốc lộ (4 làn, ruộng lúa, làng ven đường) · Nông thôn (tỉnh lộ, đường liên xã, kênh mương, cầu, ruộng lúa, nhà mái ngói, chợ quê) · Khu công nghiệp (đường 4 làn, nhà xưởng, bãi container, cổng KCN, trạm cân, khu nhà trọ công nhân).
+
+### Tình huống đặc biệt (phát sinh ngẫu nhiên 2–3 lần mỗi ca)
+| Tình huống | Cách xử lý trong game |
+|---|---|
+| 🚑 Tai nạn (va chạm xe máy – ô tô, xe tải lật đổ hàng, xe máy tự ngã) | Đến hiện trường, trả lời 3 câu về quy trình: cảnh báo, phân luồng, sơ cứu, ghi nhận, đo nồng độ cồn |
+| 🦹 Cướp giật | Bám theo xe đối tượng (áo đen, che biển số), áp sát an toàn, xử lý và bàn giao |
+| 🚨 Truy nã | Băng rôn hiện tên và biển số; tìm đúng xe trong dòng xe, dừng xe, khống chế an toàn, bàn giao. Ở chế độ chốt: để lọt qua chốt bị trừ 40 điểm |
+| 🏍 Đua xe trái phép | Không truy đuổi nguy hiểm; ghi nhận, phối hợp; xử lý người chưa thành niên đúng quy định |
+| 🤝 Hỗ trợ nhân dân | Mở đường cho xe cấp cứu, hỗ trợ xe chết máy, đưa trẻ lạc về trụ sở Công an, dìu cụ già qua đường |
+
+### Nhiệm vụ trong ca
+Mỗi ca có 3 nhiệm vụ ngẫu nhiên phù hợp chế độ và bản đồ (ví dụ: xử lý 3 trường hợp không đội mũ bảo hiểm, xử lý 2 xe quá tải, xử lý tốt 2 tình huống đặc biệt, không để lọt xe vi phạm...). Hoàn thành được thưởng 30–60 điểm.
 
 ### Vòng chơi của một lượt dừng xe
 1. **Phát hiện:** quan sát bảng/thẻ phóng to (mũ bảo hiểm, số người, điện thoại), máy đo tốc độ và tin báo.
@@ -83,6 +96,8 @@ game/
 ├── js/player.js          # nhân vật chiến sĩ CSGT
 ├── js/stop.js            # quy trình dừng xe, chấm điểm, bỏ chạy, tai nạn
 ├── js/ui.js              # menu, hộp thoại, tổng kết, sổ tay pháp luật
+├── js/sprites.js         # đồ họa pixel chi tiết (vẽ ở độ phân giải gấp đôi)
+├── js/events.js          # tình huống đặc biệt + nhiệm vụ trong ca
 ├── js/main.js            # vòng lặp game, điều khiển, camera, ánh sáng đêm, mưa
 ├── sw.js, manifest.webmanifest, icon.svg   # chạy offline dạng ứng dụng (PWA)
 ```
